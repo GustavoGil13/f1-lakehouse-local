@@ -1,0 +1,11 @@
+FROM apache/spark:3.5.1-python3
+
+# Switch to root to install Python packages
+USER root
+
+# Install Python dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Back to default Spark user
+USER spark

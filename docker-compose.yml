@@ -68,6 +68,9 @@ services:
   #
   # We use Bitnami's Spark image to avoid manual installation.
   spark-master:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     image: ${SPARK_IMAGE}
     container_name: spark-master
     environment:
@@ -77,7 +80,7 @@ services:
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
-
+      BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
@@ -90,6 +93,9 @@ services:
       tail -f /opt/spark/logs/*"
 
   spark-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
     image: ${SPARK_IMAGE}
     container_name: spark-worker
     depends_on:
@@ -100,6 +106,7 @@ services:
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
+      BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
     ports:
       - "8081:8081"   # Spark worker UI
     volumes:
