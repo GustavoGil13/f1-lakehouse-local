@@ -31,46 +31,15 @@ def env_output_path_for(endpoint: str) -> str:
     return value
 
 
-def load_bronze_params(params_path: Optional[str]) -> Dict[str, Any]:
-    """
-    Load Bronze ingestion params from a JSON file.
-
-    If params_filename is None -> return {}
-    If file does not exist -> raise error
-    """
-    if not params_path:
-        print("No --params provided. Proceeding with empty params.")
-        return {}
-
-    if not os.path.exists(params_path):
-        raise RuntimeError(f"Params file not found: {params_path}")
-
-    try:
-        with open(params_path, "r", encoding="utf-8") as f:
-            params = json.load(f)
-
-        if not isinstance(params, dict):
-            raise RuntimeError("Params file must contain a JSON object")
-
-        print(f"Loaded params from {params_path}: {params}")
-        return params
-
-    except Exception as e:
-        raise RuntimeError(f"Failed to load params from {params_path}: {e}") from e
-
-
-
-def main(endpoint: str, params_json: Optional[str]) -> None:
+def main(endpoint: str, year: int) -> None:
     spark = SparkSession.builder.appName(f"bronze_ingest_{endpoint}").getOrCreate()
 
     request_id = str(uuid.uuid4())
     ingestion_ts = datetime.now(timezone.utc).isoformat()
 
-    params: Dict[str, Any] = load_bronze_params(params_json)
-
     output_path = env_output_path_for(endpoint)
 
-    url, params_used, http_status, payload = fetch_json(endpoint, params=params)
+    url, params_used, http_status, payload = fetch_json(endpoint, params={"year": year})
 
     # OpenF1 typically returns a JSON array. If it returns an object, we still store it as a single row.
     if isinstance(payload, list):
@@ -99,13 +68,8 @@ def main(endpoint: str, params_json: Optional[str]) -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Generic OpenF1 -> Bronze Delta ingestor")
-    parser.add_argument("--endpoint", required=True, help='OpenF1 endpoint name, e.g. "sessions" or "drivers"')
-    parser.add_argument(
-        "--params",
-        required=False,
-        help="Filename of a JSON file with query params (located in spark/jobs)",
-    )
+    parser = argparse.ArgumentParser(description="Bronze Ingestion: Session Information")
+    parser.add_argument("--year", required=True, help='Year to retrieve Session information')
     args = parser.parse_args()
 
-    main(endpoint=args.endpoint, params_json=args.params)
+    main(endpoint="sessions", year=args.year)
