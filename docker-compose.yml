@@ -75,6 +75,9 @@ services:
       S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
       S3A_SECRET_KEY: ${S3A_SECRET_KEY}
       S3A_ENDPOINT: ${S3A_ENDPOINT}
+      AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
+
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
@@ -95,6 +98,8 @@ services:
       S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
       S3A_SECRET_KEY: ${S3A_SECRET_KEY}
       S3A_ENDPOINT: ${S3A_ENDPOINT}
+      AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
+      AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
     ports:
       - "8081:8081"   # Spark worker UI
     volumes:
