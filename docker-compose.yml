@@ -81,12 +81,14 @@ services:
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
       BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
+      BRONZE_DRIVERS_DELTA_PATH: ${BRONZE_DRIVERS_DELTA_PATH}
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
+      - ./spark/lib:/opt/spark/app_lib
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-master.sh --host spark-master;
@@ -107,11 +109,13 @@ services:
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
       BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
+      BRONZE_DRIVERS_DELTA_PATH: ${BRONZE_DRIVERS_DELTA_PATH}
     ports:
       - "8081:8081"   # Spark worker UI
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
+      - ./spark/lib:/opt/spark/app_lib
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-worker.sh spark://spark-master:7077;
