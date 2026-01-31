@@ -3,23 +3,13 @@ from __future__ import annotations
 import argparse
 import os
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 
-
-def env_output_path_for(name: str) -> str:
-    value = os.environ.get("BRONZE_DELTA_PATH") + name
-    if not value:
-        raise RuntimeError(
-            f"Missing env var. "
-            f"Define it in .env (and pass it via docker-compose environment)."
-        )
-    return value
 
 
 def main(name: str) -> None:
     spark = SparkSession.builder.appName(f"check_bronze_table").getOrCreate()
 
-    path = env_output_path_for(name)
+    path = os.environ.get(f"BRONZE_{name.upper()}_DELTA_PATH")
     df = spark.read.format("delta").load(path)
 
     print(f"OK: endpoint={name} path={path}")
