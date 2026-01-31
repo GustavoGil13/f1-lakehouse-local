@@ -22,33 +22,25 @@ from openf1_client import fetch_json  # type: ignore
 
 
 def env_output_path_for(endpoint: str) -> str:
-    env_key = f"BRONZE_{endpoint.upper()}_DELTA_PATH"
-    value = os.environ.get(env_key)
+    value = os.environ.get("BRONZE_DELTA_PATH") + endpoint
     if not value:
         raise RuntimeError(
-            f"Missing env var {env_key}. "
+            f"Missing env var. "
             f"Define it in .env (and pass it via docker-compose environment)."
         )
     return value
 
 
-import json
-import os
-from typing import Any, Dict, Optional
-
-
-def load_bronze_params(params_filename: Optional[str], base_dir: str = "/opt/spark/jobs") -> Dict[str, Any]:
+def load_bronze_params(params_path: Optional[str]) -> Dict[str, Any]:
     """
     Load Bronze ingestion params from a JSON file.
 
     If params_filename is None -> return {}
     If file does not exist -> raise error
     """
-    if not params_filename:
+    if not params_path:
         print("No --params provided. Proceeding with empty params.")
         return {}
-
-    params_path = os.path.join(base_dir, params_filename)
 
     if not os.path.exists(params_path):
         raise RuntimeError(f"Params file not found: {params_path}")

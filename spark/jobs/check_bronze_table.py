@@ -7,11 +7,10 @@ from pyspark.sql.functions import col
 
 
 def env_output_path_for(endpoint: str) -> str:
-    env_key = f"BRONZE_{endpoint.upper()}_DELTA_PATH"
-    value = os.environ.get(env_key)
+    value = os.environ.get("BRONZE_DELTA_PATH") + endpoint
     if not value:
         raise RuntimeError(
-            f"Missing env var {env_key}. "
+            f"Missing env var. "
             f"Define it in .env (and pass it via docker-compose environment)."
         )
     return value
