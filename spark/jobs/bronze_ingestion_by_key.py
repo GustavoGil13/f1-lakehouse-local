@@ -17,47 +17,47 @@ sys.path.append("/opt/spark/app_lib")    # not used here
 sys.path.append("/opt/spark/jobs/..")
 
 from openf1_client import fetch_json  # type: ignore
-from utils import console_log_ingestion, json_serialize
+from utils import json_serialize
+from logging_config import console_log_ingestion_ts, console_log_key, console_log_ingestion
 
 
-def main(endpoint: str, year: int) -> None:
-    spark = SparkSession.builder.appName(f"bronze_{endpoint}_from_sessions_year").getOrCreate()
+def main(source_endpoint: str, year: int, key: str, target_endpoint: str) -> None:
+    spark = SparkSession.builder.appName("bronze_ingestion_by_key").getOrCreate()
 
-    sessions_delta_path = os.environ.get("BRONZE_SESSIONS_DELTA_PATH")
-    delta_path = os.environ.get(f"BRONZE_{endpoint.upper()}_DELTA_PATH")
+    source_delta_path = os.environ.get(f"BRONZE_{source_endpoint.upper()}_DELTA_PATH")
+    target_delta_path = os.environ.get(f"BRONZE_{target_endpoint.upper()}_DELTA_PATH")
 
-    # Read Session data filtered by year
+    # Read source data filtered by year
     session_filtered_by_year = (
             spark.read.format("delta")
-            .load(sessions_delta_path)
+            .load(source_delta_path)
             .withColumn("year", F.get_json_object("raw", "$.year").cast("int"))
-            .withColumn("meeting_key", F.get_json_object("raw", "$.meeting_key").cast("int"))
+            .withColumn(key, F.get_json_object("raw", f"$.{key}").cast("int"))
             .filter(F.col("year") == year)
             .select(
                 "ingestion_ts"
                 , "year"
-                , "meeting_key"
+                , key
             )
     )
 
     # Get most recent ingestion timestamp
     max_ingestion_ts = session_filtered_by_year.agg(F.max("ingestion_ts").alias("max_ingestion_ts")).collect()[0]["max_ingestion_ts"]
-    # print(max_ingestion_ts, most_recent_sessions.count())
     most_recent_sessions = session_filtered_by_year.filter(F.col("ingestion_ts") == max_ingestion_ts)
-    # print(most_recent_sessions.show(5))
+    console_log_ingestion_ts(max_ingestion_ts, most_recent_sessions)
 
-    # Get meeting keys from most recent ingestion timestamp
-    meeting_keys = most_recent_sessions.select("meeting_key").distinct().collect()
-    meeting_keys_list = [row["meeting_key"] for row in meeting_keys]
-    print("Found", len(meeting_keys_list), "meeting keys")
+    # Get keys from most recent ingestion timestamp
+    keys = most_recent_sessions.select(key).distinct().collect()
+    keys_list = [row[key] for row in keys]
+    console_log_key(key, keys_list)
 
-    # Fetch endpoint data per meeting key
+    # Fetch endpoint data per key
     all_raw = []
     request_id = str(uuid.uuid4())
     ingestion_ts = datetime.now(timezone.utc).isoformat()
 
-    for meeting_key in meeting_keys_list:
-        url, params_used, http_status, payload = fetch_json(endpoint, params={"meeting_key": meeting_key})
+    for k in keys_list:
+        url, params_used, http_status, payload = fetch_json(target_endpoint, params={key: k})
         
         for item in payload:
             all_raw.append(
@@ -75,17 +75,19 @@ def main(endpoint: str, year: int) -> None:
     
     df = spark.createDataFrame(all_raw)
     
-    df.write.format("delta").mode("append").save(delta_path)
+    df.write.format("delta").mode("append").save(target_delta_path)
 
-    console_log_ingestion(endpoint, df, delta_path, request_id)
+    console_log_ingestion(target_endpoint, df, target_delta_path, request_id)
 
     spark.stop()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Bronze Ingestion: Meeting Keys Tables")
-    parser.add_argument("--endpoint", required=True, help='Endpoint to search for Sessions meeting keys')
-    parser.add_argument("--year", required=True, help='Year to search in Sessions for meeting keys')
+    parser = argparse.ArgumentParser(description="Bronze Ingestion Information by Key")
+    parser.add_argument("--source_endpoint", required=True, help='Source Endpoint to retrieve list of keys')
+    parser.add_argument("--year", required=True, help='Year to filter Source Endpoint')
+    parser.add_argument("--key", required=True, help='Key to filter Source Endpoint')
+    parser.add_argument("--target_endpoint", required=True, help='Target Endpoint to search for key')
     args = parser.parse_args()
 
-    main(endpoint=args.endpoint, year=args.year)
+    main(source_endpoint=args.source_endpoint, year=args.year, key=args.key, target_endpoint=args.target_endpoint)
