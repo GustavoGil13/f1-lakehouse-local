@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -22,11 +20,11 @@ from openf1_client import fetch_json  # type: ignore
 from utils import console_log_ingestion, json_serialize
 
 
-def main(year: int) -> None:
-    spark = SparkSession.builder.appName("bronze_drivers_from_sessions_year").getOrCreate()
+def main(endpoint: str, year: int) -> None:
+    spark = SparkSession.builder.appName(f"bronze_{endpoint}_from_sessions_year").getOrCreate()
 
     sessions_delta_path = os.environ.get("BRONZE_SESSIONS_DELTA_PATH")
-    drivers_delta_path = os.environ.get("BRONZE_DRIVERS_DELTA_PATH")
+    delta_path = os.environ.get(f"BRONZE_{endpoint.upper()}_DELTA_PATH")
 
     # Read Session data filtered by year
     session_filtered_by_year = (
@@ -51,15 +49,15 @@ def main(year: int) -> None:
     # Get meeting keys from most recent ingestion timestamp
     meeting_keys = most_recent_sessions.select("meeting_key").distinct().collect()
     meeting_keys_list = [row["meeting_key"] for row in meeting_keys]
-    # print(meeting_keys_list)
+    print("Found", len(meeting_keys_list), "meeting keys")
 
-    # Fetch drivers data per meeting key
+    # Fetch endpoint data per meeting key
     all_raw = []
     request_id = str(uuid.uuid4())
     ingestion_ts = datetime.now(timezone.utc).isoformat()
 
     for meeting_key in meeting_keys_list:
-        url, params_used, http_status, payload = fetch_json("drivers", params={"meeting_key": meeting_key})
+        url, params_used, http_status, payload = fetch_json(endpoint, params={"meeting_key": meeting_key})
         
         for item in payload:
             all_raw.append(
@@ -77,16 +75,17 @@ def main(year: int) -> None:
     
     df = spark.createDataFrame(all_raw)
     
-    df.write.format("delta").mode("append").save(drivers_delta_path)
+    df.write.format("delta").mode("append").save(delta_path)
 
-    console_log_ingestion("drivers", df, drivers_delta_path, request_id)
+    console_log_ingestion(endpoint, df, delta_path, request_id)
 
     spark.stop()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Bronze Ingestion: Driver Information")
-    parser.add_argument("--year", required=True, help='Year to search Sessions to get meeting keys')
+    parser = argparse.ArgumentParser(description="Bronze Ingestion: Meeting Keys Tables")
+    parser.add_argument("--endpoint", required=True, help='Endpoint to search for Sessions meeting keys')
+    parser.add_argument("--year", required=True, help='Year to search in Sessions for meeting keys')
     args = parser.parse_args()
 
-    main(year=args.year)
+    main(endpoint=args.endpoint, year=args.year)

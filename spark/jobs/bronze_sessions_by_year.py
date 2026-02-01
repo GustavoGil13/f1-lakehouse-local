@@ -5,7 +5,6 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, lit, sha2, to_date
