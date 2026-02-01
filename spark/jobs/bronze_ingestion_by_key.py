@@ -4,6 +4,7 @@ import argparse
 import os
 import uuid
 from datetime import datetime, timezone
+from typing import Callable
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -21,7 +22,24 @@ from utils import json_serialize
 from logging_config import console_log_ingestion_ts, console_log_key, console_log_ingestion
 
 
-def main(source_endpoint: str, year: int, key: str, target_endpoint: str) -> None:
+from pyspark.sql import functions as F
+from typing import Callable
+
+OPERATORS: dict[str, Callable] = {
+    "eq": lambda c, v: c == v
+    , "ne": lambda c, v: c != v
+}
+
+def main(
+        source_endpoint: str
+        , year: int
+        , key: str
+        , target_endpoint: str
+        , target_endpoint_filter_column=None
+        , target_endpoint_filter_operator="eq"
+        , target_endpoint_filter_value=None
+    ) -> None:
+
     spark = SparkSession.builder.appName("bronze_ingestion_by_key").getOrCreate()
 
     source_delta_path = os.environ.get(f"BRONZE_{source_endpoint.upper()}_DELTA_PATH")
@@ -33,7 +51,12 @@ def main(source_endpoint: str, year: int, key: str, target_endpoint: str) -> Non
             .load(source_delta_path)
             .withColumn("year", F.get_json_object("raw", "$.year").cast("int"))
             .withColumn(key, F.get_json_object("raw", f"$.{key}").cast("int"))
-            .filter(F.col("year") == year)
+            .filter(
+                (
+                    (F.col("year") == year)
+                    & (OPERATORS[target_endpoint_filter_operator](F.get_json_object("raw", f"$.{target_endpoint_filter_column}").cast("string"), target_endpoint_filter_value) if target_endpoint_filter_column is not None else F.lit(True))
+                )
+            )
             .select(
                 "ingestion_ts"
                 , "year"
@@ -88,6 +111,17 @@ if __name__ == "__main__":
     parser.add_argument("--year", required=True, help='Year to filter Source Endpoint')
     parser.add_argument("--key", required=True, help='Key to filter Source Endpoint')
     parser.add_argument("--target_endpoint", required=True, help='Target Endpoint to search for key')
+    parser.add_argument("--target_endpoint_filter_column", required=False, help='Target Endpoint filter column')
+    parser.add_argument("--target_endpoint_filter_operator", required=False, choices=["eq", "ne"], help='Target Endpoint filter operator allows eq and ne, default is eq')
+    parser.add_argument("--target_endpoint_filter_value", required=False, help='Target Endpoint filter value')
     args = parser.parse_args()
 
-    main(source_endpoint=args.source_endpoint, year=args.year, key=args.key, target_endpoint=args.target_endpoint)
+    main(
+        source_endpoint=args.source_endpoint
+        , year=args.year
+        , key=args.key
+        , target_endpoint=args.target_endpoint
+        , target_endpoint_filter_column=args.target_endpoint_filter_column
+        , target_endpoint_filter_operator=args.target_endpoint_filter_operator
+        , target_endpoint_filter_value=args.target_endpoint_filter_value
+    )
