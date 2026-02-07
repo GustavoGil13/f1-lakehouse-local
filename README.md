@@ -1,5 +1,9 @@
 # f1-lakehouse-local
 
+## Tools
+
+MinIO + Spark + Great Expectations + airflow
+
 ## API Fetch order
 
 1. Meetings filtered by Year
@@ -8,7 +12,7 @@
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/bronze_ingestion_by_year.py \
+  /opt/spark/jobs/bronze/bronze_ingestion_by_year.py \
   --endpoint meetings \
   --year 2023'
 ```
@@ -22,7 +26,7 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/bronze_ingestion_by_key.py \
+  /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
   --key meeting_key \
@@ -38,7 +42,7 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/bronze_ingestion_by_key.py \
+  /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
   --key meeting_key \
@@ -54,7 +58,7 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/bronze_ingestion_by_key.py \
+  /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
   --key meeting_key \
@@ -69,7 +73,7 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/bronze_ingestion_by_key.py \
+  /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint sessions \
   --year 2023 \
   --key session_key \
