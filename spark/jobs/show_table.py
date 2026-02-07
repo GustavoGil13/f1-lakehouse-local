@@ -14,7 +14,7 @@ def main(os_path_var: str, table_name: str, year: int) -> None:
 
     # df2 = df.filter(F.col("team_name").isNull())
 
-    df2 = df.groupBy("meeting_key", "session_key", "driver_number").count().filter(F.col("count") > 1)
+    df2 = df.groupBy("meeting_key", "session_key", "driver_key").count().filter(F.col("count") > 1)
 
     print(df2.show(truncate=False, vertical=True))
 

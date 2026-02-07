@@ -51,7 +51,7 @@
 - team_colour
 
 ### ✅ Drivers Table (future: separate into drivers dim and a bridge table with the same granularity of Drivers): 
-- driver_key (?)
+- driver_key (xxhash64 with meeting_key, session_key and driver_number)
 - team_key
 - meeting_key
 - session_key
@@ -63,7 +63,7 @@
 - headshot_url
 - year
 
-### Session Result Table:
+### ✅ Session Result Table:
 - session_result_key (?)
 - meeting_key
 - session_key

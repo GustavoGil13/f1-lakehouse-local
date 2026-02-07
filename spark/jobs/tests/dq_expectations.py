@@ -69,6 +69,15 @@ def drivers_expectations(gdf):
     gdf.expect_column_values_to_not_be_null("last_name")
 
 
+def session_result_expectations(gdf):
+    gdf.expect_table_row_count_to_be_between(min_value=1, max_value=None)
+    gdf.expect_column_values_to_be_unique("session_result_key")
+    gdf.expect_column_values_to_not_be_null("session_result_key")
+    gdf.expect_column_values_to_not_be_null("meeting_key")
+    gdf.expect_column_values_to_not_be_null("session_key")
+    gdf.expect_column_values_to_not_be_null("driver_key")
+
+
 EXPECTATIONS_REGISTRY = {
     "circuits": circuits_expectations
     , "countries": countries_expectations
@@ -77,4 +86,5 @@ EXPECTATIONS_REGISTRY = {
     , "sessions": sessions_expectations
     , "teams": teams_expectations
     , "drivers": drivers_expectations
+    , "session_result": session_result_expectations
 }
