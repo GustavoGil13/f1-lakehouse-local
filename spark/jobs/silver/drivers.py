@@ -6,6 +6,7 @@ import sys
 from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 
 sys.path.append("/opt/spark/app_lib")
 
@@ -37,20 +38,11 @@ def main(year: int) -> None:
 
     run_ts = datetime.now(timezone.utc).isoformat()
 
-    silver_df = (
+    base_df = (
         bronze_df_with_struct
         .filter(F.col("json.team_name").isNotNull())
         .select (
-            F.xxhash64 (
-                F.concat_ws (
-                    "||"
-                    , F.col("json.meeting_key")
-                    , F.col("json.session_key")
-                    , F.col("json.driver_number")
-                )
-            ).alias("driver_key")
-            , F.col("json.meeting_key").alias("meeting_key")
-            , F.col("json.session_key").alias("session_key")
+            F.xxhash64(F.col("json.driver_number")).alias("driver_key")
             , F.xxhash64("json.team_name").alias("team_key")
             , F.col("json.driver_number").alias("driver_number")
             , F.col("json.first_name").alias("first_name")
@@ -63,6 +55,19 @@ def main(year: int) -> None:
             , F.col("ingestion_ts").cast("timestamp").alias("bronze_ingestion_ts") # easy to check if the data is up to date
             , F.col("request_id").alias("request_id") # FK to bronze layer
         )
+    )
+
+    # There are duplicates for example Lando Norris has both NOR and FOR as name_acronyms
+    # We want to keep the rows where the name_acronym is most frequent
+    w_freq = Window.partitionBy("driver_key", "name_acronym")
+    df_with_freq = base_df.withColumn("acronym_freq", F.count("*").over(w_freq))
+    w_pick = Window.partitionBy("driver_key").orderBy(F.col("acronym_freq").desc())
+
+    silver_df = (
+        df_with_freq
+        .withColumn("rn", F.row_number().over(w_pick))
+        .filter(F.col("rn") == 1)
+        .drop("rn", "acronym_freq")
     )
 
     request_id = silver_df.select("request_id").distinct().first()[0]

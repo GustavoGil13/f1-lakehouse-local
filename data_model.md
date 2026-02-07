@@ -63,6 +63,23 @@
 - headshot_url
 - year
 
+#### Drivers Information
+- driver_key (needs to be generated F.xxhash64("driver_number"))
+- team_key
+- first_name
+- last_name
+- name_acronym
+- broadcast_name
+- driver_number
+- headshot_url
+
+#### Drivers Sessions Association
+- drivers_sessions_association_key
+- driver_key (needs to be generated F.xxhash64("driver_number"))
+- meeting_key
+- session_key
+
+
 ### ✅ Session Result Table:
 - session_result_key (?)
 - meeting_key
