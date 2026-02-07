@@ -50,7 +50,7 @@
 - team_name
 - team_colour
 
-### Drivers Table:
+### ✅ Drivers Table (future: separate into drivers dim and a bridge table with the same granularity of Drivers): 
 - driver_key (?)
 - team_key
 - meeting_key
@@ -60,10 +60,8 @@
 - name_acronym
 - broadcast_name
 - driver_number
-- country_code (tenho de ver como vou fazer por causa da country table que ja existe)
 - headshot_url
 - year
-
 
 ### Session Result Table:
 - session_result_key (?)

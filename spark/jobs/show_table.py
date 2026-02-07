@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 from pyspark.sql import SparkSession
+from pyspark.sql import functions as F
 
 def main(os_path_var: str, table_name: str, year: int) -> None:
     spark = SparkSession.builder.appName("show_table").getOrCreate()
@@ -11,7 +12,11 @@ def main(os_path_var: str, table_name: str, year: int) -> None:
 
     df = spark.read.format("delta").load(path).filter(f"year = {year}")
 
-    print(df.show(truncate=False, vertical=True))
+    # df2 = df.filter(F.col("team_name").isNull())
+
+    df2 = df.groupBy("meeting_key", "session_key", "driver_number").count().filter(F.col("count") > 1)
+
+    print(df2.show(truncate=False, vertical=True))
 
     spark.stop()
 
