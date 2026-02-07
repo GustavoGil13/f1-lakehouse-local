@@ -12,7 +12,7 @@ from utils import failed_expectations_json
 from logging_config import console_log_dq
 
 def main(year: int):
-    silver_table_name = "meetings"
+    silver_table_name = "circuits"
 
     spark = SparkSession.builder.appName(f"silver_data_quality_{silver_table_name}").getOrCreate()
 
@@ -24,14 +24,10 @@ def main(year: int):
 
     # -------------------------------------------------------
     gdf.expect_table_row_count_to_be_between(min_value=1, max_value=None)
-    gdf.expect_column_values_to_not_be_null("meeting_key")
-    gdf.expect_column_values_to_be_unique("meeting_key")
-    gdf.expect_column_values_to_not_be_null("local_ts_start")
-    gdf.expect_column_pair_values_A_to_be_greater_than_B("local_ts_end", "local_ts_start", or_equal=True)
-    gdf.expect_column_values_to_not_be_null("ts_start")
-    gdf.expect_column_pair_values_A_to_be_greater_than_B("ts_end", "ts_start", or_equal=True)
-    gdf.expect_column_values_to_match_regex("country_code", r"^[A-Z]{3}$")
-    gdf.expect_column_values_to_match_regex("gmt_offset", r"^[+-]?\d{2}:\d{2}:\d{2}$")
+    gdf.expect_column_values_to_not_be_null("circuit_key")
+    gdf.expect_column_values_to_be_unique("circuit_key")
+    gdf.expect_column_values_to_not_be_null("circuit_short_name")
+    gdf.expect_column_values_to_not_be_null("circuit_type")
     # -------------------------------------------------------
 
     result = gdf.validate()
@@ -65,7 +61,7 @@ def main(year: int):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Silver Meetings Data Quality")
+    parser = argparse.ArgumentParser(description="Silver Circuits Data Quality")
     parser.add_argument("--year", required=True, help='Year to filter')
     args = parser.parse_args()
 

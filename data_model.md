@@ -1,17 +1,18 @@
-### Circuit Table (from meetings table):
+### Circuits Table (from meetings table):
 - circuit_key
 - circuit_short_name
 - circuit_type
 - circuit_info_url
 - circuit_image
+- year
 
-### Country Table (from meetings table):
+### Countries Table (from meetings table):
 - country_key
 - country_code
 - country_flag
 - country_name
 
-### Location Table (from meetings table):
+### Locations Table (from meetings table):
 - location_key (needs to be generated F.xxhash64("location_name")) 
 - country_key
 - location_name

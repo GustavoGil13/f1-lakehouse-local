@@ -29,7 +29,7 @@ def apply_gmt_offset(ts_col: Column, offset_col: Column) -> Column:
 
 
 def main(year: int) -> None:
-    table_name = "sessions"
+    table_name = "meetings"
 
     spark = SparkSession.builder.appName(f"silver_transform_{table_name}").getOrCreate()
 
@@ -49,9 +49,6 @@ def main(year: int) -> None:
 
     json_schema = StructType (
         [
-            StructField("circuit_key", LongType())
-
-
             StructField("circuit_image", StringType())
             , StructField("circuit_info_url", StringType())
             , StructField("circuit_key", LongType())
@@ -113,7 +110,7 @@ def main(year: int) -> None:
 
     request_id = silver_df.select("request_id").distinct().first()[0]
 
-    silver_path = os.environ.get(f"SILVER_{table_name.upper()}_DELTA_PATH")
+    silver_path = os.environ.get("SILVER_DELTA_PATH") + table_name
 
     (
         silver_df
