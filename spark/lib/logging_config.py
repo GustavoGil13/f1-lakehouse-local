@@ -15,3 +15,6 @@ def console_log_ingestion_ts(ts: str, df: DataFrame) -> None:
 
 def console_log_key(key: str, keys_list: List) -> None:
     logging.info(f"OK: {key}_list_length={len(keys_list)}")
+
+def console_log_dq(endpoint: str, path:str) -> None:
+    logging.info(f"OK - ALL TEST SUCCEEDED: endpoint={endpoint} path={path}")

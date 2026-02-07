@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import StructType, StructField, StringType, LongType, IntegerType, TimestampType
@@ -68,6 +69,7 @@ def main(bronze_source_table: str, year:int) -> None:
 
     bronze_df_with_struct = most_recent_data.withColumn("json", F.from_json("raw", json_schema)).drop("raw")
 
+    run_ts = datetime.now(timezone.utc).isoformat()
 
     silver_df = (
         bronze_df_with_struct
@@ -98,10 +100,13 @@ def main(bronze_source_table: str, year:int) -> None:
                 , F.col("json.gmt_offset")
             ).alias("ts_end")
             , F.col("json.location").alias("location")
+            , F.lit(run_ts).alias("run_ts")
             , F.col("ingestion_ts").cast("timestamp").alias("bronze_ingestion_ts") # easy to check if the data is up to date
-            , F.col("request_id").cast("long").alias("bronze_request_id") # FK to bronze layer
+            , F.col("request_id").alias("request_id") # FK to bronze layer
         )
     )
+
+    request_id = silver_df.select("request_id").distinct().first()[0]
 
     silver_path = os.environ.get(f"SILVER_{bronze_source_table.upper()}_DELTA_PATH")
 
@@ -110,11 +115,12 @@ def main(bronze_source_table: str, year:int) -> None:
         .write
         .format("delta")
         .mode("overwrite")
+        .option("overwriteSchema", "true")
         .partitionBy("year")
         .save(silver_path)
     )
 
-    console_log_ingestion(bronze_source_table, silver_df, silver_path, "")
+    console_log_ingestion(bronze_source_table, silver_df, silver_path, request_id)
     
     spark.stop()
 

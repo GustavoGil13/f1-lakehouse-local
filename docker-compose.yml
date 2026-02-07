@@ -86,6 +86,7 @@ services:
       BRONZE_SESSION_RESULT_DELTA_PATH: ${BRONZE_SESSION_RESULT_DELTA_PATH}
       BRONZE_LAPS_DELTA_PATH: ${BRONZE_LAPS_DELTA_PATH}
       SILVER_MEETINGS_DELTA_PATH: ${SILVER_MEETINGS_DELTA_PATH}
+      DQ_RUNS_DELTA_PATH: ${DQ_RUNS_DELTA_PATH}
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
@@ -93,7 +94,6 @@ services:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
       - ./spark/lib:/opt/spark/app_lib
-      - ./dq:/opt/dq
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-master.sh --host spark-master;
@@ -119,13 +119,13 @@ services:
       BRONZE_SESSION_RESULT_DELTA_PATH: ${BRONZE_SESSION_RESULT_DELTA_PATH}
       BRONZE_LAPS_DELTA_PATH: ${BRONZE_LAPS_DELTA_PATH}
       SILVER_MEETINGS_DELTA_PATH: ${SILVER_MEETINGS_DELTA_PATH}
+      DQ_RUNS_DELTA_PATH: ${DQ_RUNS_DELTA_PATH}
     ports:
       - "8081:8081"   # Spark worker UI
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
       - ./spark/lib:/opt/spark/app_lib
-      - ./dq:/opt/dq
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-worker.sh spark://spark-master:7077;
