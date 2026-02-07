@@ -11,7 +11,7 @@ def main(os_path_var: str, table_name: str, year: int) -> None:
 
     df = spark.read.format("delta").load(path).filter(f"year = {year}")
 
-    print(df.show(5, truncate=False, vertical=True))
+    print(df.show(truncate=False, vertical=True))
 
     spark.stop()
 

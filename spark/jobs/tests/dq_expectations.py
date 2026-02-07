@@ -36,6 +36,7 @@ def meetings_expectations(gdf):
     gdf.expect_column_values_to_not_be_null("ts_start")
     gdf.expect_column_pair_values_A_to_be_greater_than_B("ts_end", "ts_start", or_equal=True)
 
+
 def sessions_expectations(gdf):
     gdf.expect_table_row_count_to_be_between(min_value=1, max_value=None)
     gdf.expect_column_values_to_be_unique("session_key")
@@ -49,10 +50,18 @@ def sessions_expectations(gdf):
     gdf.expect_column_pair_values_A_to_be_greater_than_B("ts_end", "ts_start", or_equal=True)
 
 
+def teams_expectations(gdf):
+    gdf.expect_table_row_count_to_be_between(min_value=1, max_value=None)
+    gdf.expect_column_values_to_be_unique("team_key")
+    gdf.expect_column_values_to_not_be_null("team_key")
+    gdf.expect_column_values_to_not_be_null("team_name")
+
+
 EXPECTATIONS_REGISTRY = {
     "circuits": circuits_expectations
     , "countries": countries_expectations
     , "locations": locations_expectations
     , "meetings": meetings_expectations
     , "sessions": sessions_expectations
+    , "teams": teams_expectations
 }

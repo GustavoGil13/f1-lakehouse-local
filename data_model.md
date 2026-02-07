@@ -45,11 +45,10 @@
 - ts_end
 - year
 
-### Teams Table:
+### ✅ Teams Table:
 - team_key (needs to be generated F.xxhash64("team_name"))
 - team_name
 - team_colour
-
 
 ### Drivers Table:
 - driver_key (?)
