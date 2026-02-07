@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, List
 from pyspark.sql import DataFrame
+from pyspark.sql.column import Column
 from pyspark.sql import functions as F
 from logging_config import console_log_ingestion_ts
 
@@ -31,6 +32,15 @@ def get_most_recent_data(df: DataFrame, filter_column: str) -> DataFrame:
     most_recent_data = df.filter(F.col(filter_column) == max_ingestion_ts)
     console_log_ingestion_ts(max_ingestion_ts, most_recent_data)
     return most_recent_data
+
+
+def gmt_offset_to_seconds(offset_col: Column) -> Column:
+    sign = F.when(offset_col.startswith("-"), -1).otherwise(1)
+    hours = F.abs(F.split(offset_col, ":")[0].cast("int"))
+    mins  = F.split(offset_col, ":")[1].cast("int")
+    secs  = F.split(offset_col, ":")[2].cast("int")
+    return sign * (hours * 3600 + mins * 60 + secs)
+
 
 if __name__ == "__main__":
     pass
