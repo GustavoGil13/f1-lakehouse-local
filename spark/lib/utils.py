@@ -1,5 +1,8 @@
 import json
 from typing import Any, Dict, List
+from pyspark.sql import DataFrame
+from pyspark.sql import functions as F
+from logging_config import console_log_ingestion_ts
 
 def json_serialize(obj: dict) -> str:
     return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
@@ -21,6 +24,13 @@ def extract_failed_expectations(result) -> List[Dict[str, Any]]:
 def failed_expectations_json(result) -> str:
     """Atalho: devolve as failed expectations em JSON string."""
     return json.dumps(extract_failed_expectations(result), default=str)
+
+
+def get_most_recent_data(df: DataFrame, filter_column: str) -> DataFrame:
+    max_ingestion_ts = df.agg(F.max(filter_column).alias(f"max_{filter_column}")).collect()[0][f"max_{filter_column}"]
+    most_recent_data = df.filter(F.col(filter_column) == max_ingestion_ts)
+    console_log_ingestion_ts(max_ingestion_ts, most_recent_data)
+    return most_recent_data
 
 if __name__ == "__main__":
     pass

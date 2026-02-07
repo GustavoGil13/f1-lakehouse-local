@@ -6,12 +6,15 @@ import sys
 from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StructType, StructField, StringType, LongType, IntegerType, TimestampType
-from pyspark.sql.column import Column
 
 sys.path.append("/opt/spark/app_lib")
 
-from logging_config import console_log_ingestion, console_log_ingestion_ts
+from logging_config import console_log_ingestion
+from utils import get_most_recent_data
+
+sys.path.append("/opt/spark/jobs/..")
+
+from jobs.schemas.meetings import json_schema
 
 
 def main(year: int) -> None:
@@ -29,31 +32,7 @@ def main(year: int) -> None:
     )
 
     # Get most recent ingestion timestamp
-    max_ingestion_ts = bronze_df.agg(F.max("ingestion_ts").alias("max_ingestion_ts")).collect()[0]["max_ingestion_ts"]
-    most_recent_data = bronze_df.filter(F.col("ingestion_ts") == max_ingestion_ts)
-    console_log_ingestion_ts(max_ingestion_ts, most_recent_data)
-
-    json_schema = StructType (
-        [
-            StructField("circuit_image", StringType())
-            , StructField("circuit_info_url", StringType())
-            , StructField("circuit_key", LongType())
-            , StructField("circuit_short_name", StringType())
-            , StructField("circuit_type", StringType())
-            , StructField("country_code", StringType())
-            , StructField("country_flag", StringType())
-            , StructField("country_key", LongType())
-            , StructField("country_name", StringType())
-            , StructField("date_end", TimestampType())
-            , StructField("date_start", TimestampType())
-            , StructField("gmt_offset", StringType())
-            , StructField("location", StringType())
-            , StructField("meeting_key", LongType())
-            , StructField("meeting_name", StringType())
-            , StructField("meeting_official_name", StringType())
-            , StructField("year", IntegerType())
-        ]
-    )
+    most_recent_data = get_most_recent_data(bronze_df, "ingestion_ts")
 
     bronze_df_with_struct = most_recent_data.withColumn("json", F.from_json("raw", json_schema)).drop("raw")
 
