@@ -42,5 +42,11 @@ def gmt_offset_to_seconds(offset_col: Column) -> Column:
     return sign * (hours * 3600 + mins * 60 + secs)
 
 
+def apply_gmt_offset(ts_col: Column, offset_col: Column) -> Column:
+    return F.from_unixtime (
+        F.unix_timestamp(ts_col) - gmt_offset_to_seconds(offset_col)
+    ).cast("timestamp")
+
+
 if __name__ == "__main__":
     pass

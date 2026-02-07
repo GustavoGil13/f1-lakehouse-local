@@ -1,4 +1,4 @@
-### ✅ Circuits Table (from meetings table):
+### ✅Circuits Table (from meetings table):
 - circuit_key
 - circuit_short_name
 - circuit_type
@@ -6,7 +6,7 @@
 - circuit_image
 - year
 
-### Countries Table (from meetings table):
+### ✅ Countries Table (from meetings table):
 - country_key
 - country_code
 - country_flag
@@ -20,7 +20,7 @@
 - gmt_offset
 - gmt_offset_sec
 
-### Meetings Table:
+### ✅ Meetings Table:
 - meeting_key
 - country_key
 - location_key
