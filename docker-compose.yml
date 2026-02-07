@@ -93,6 +93,7 @@ services:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
       - ./spark/lib:/opt/spark/app_lib
+      - ./dq:/opt/dq
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-master.sh --host spark-master;
@@ -124,6 +125,7 @@ services:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
       - ./spark/lib:/opt/spark/app_lib
+      - ./dq:/opt/dq
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-worker.sh spark://spark-master:7077;
