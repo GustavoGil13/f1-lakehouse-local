@@ -13,7 +13,7 @@
 - country_name
 - year
 
-### Locations Table (from meetings table):
+### ✅ Locations Table (from meetings table):
 - location_key (needs to be generated F.xxhash64("location_name")) 
 - country_key
 - location_name
@@ -23,7 +23,7 @@
 ### ✅ Meetings Table:
 - meeting_key
 - country_key
-- location_key
+- location_key (needs to be generated F.xxhash64("location_name")) 
 - meeting_name
 - meeting_official_name
 - local_ts_start
@@ -32,11 +32,11 @@
 - ts_end
 - year
 
-### Sessions Table:
+### ✅ Sessions Table:
 - session_key
 - meeting_key
 - country_key
-- location_key
+- location_key (needs to be generated F.xxhash64("location_name")) 
 - session_name
 - session_type
 - local_ts_start
