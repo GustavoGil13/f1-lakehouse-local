@@ -11,7 +11,7 @@ from pyspark.sql.column import Column
 
 sys.path.append("/opt/spark/app_lib")
 
-from logging_config import console_log_check, console_log_ingestion, console_log_ingestion_ts
+from logging_config import console_log_ingestion, console_log_ingestion_ts
 
 
 def gmt_offset_to_seconds(offset_col: Column) -> Column:
@@ -28,10 +28,12 @@ def apply_gmt_offset(ts_col: Column, offset_col: Column) -> Column:
     ).cast("timestamp")
 
 
-def main(bronze_source_table: str, year:int) -> None:
-    spark = SparkSession.builder.appName(f"silver_transform_{bronze_source_table}").getOrCreate()
+def main(year: int) -> None:
+    table_name = "sessions"
 
-    bronze_path = os.environ.get(f"BRONZE_{bronze_source_table.upper()}_DELTA_PATH")
+    spark = SparkSession.builder.appName(f"silver_transform_{table_name}").getOrCreate()
+
+    bronze_path = os.environ.get(f"BRONZE_{table_name.upper()}_DELTA_PATH")
 
     bronze_df = (
         spark.read.format("delta")
@@ -47,6 +49,9 @@ def main(bronze_source_table: str, year:int) -> None:
 
     json_schema = StructType (
         [
+            StructField("circuit_key", LongType())
+
+
             StructField("circuit_image", StringType())
             , StructField("circuit_info_url", StringType())
             , StructField("circuit_key", LongType())
@@ -108,7 +113,7 @@ def main(bronze_source_table: str, year:int) -> None:
 
     request_id = silver_df.select("request_id").distinct().first()[0]
 
-    silver_path = os.environ.get(f"SILVER_{bronze_source_table.upper()}_DELTA_PATH")
+    silver_path = os.environ.get(f"SILVER_{table_name.upper()}_DELTA_PATH")
 
     (
         silver_df
@@ -120,15 +125,14 @@ def main(bronze_source_table: str, year:int) -> None:
         .save(silver_path)
     )
 
-    console_log_ingestion(bronze_source_table, silver_df, silver_path, request_id)
+    console_log_ingestion(table_name, silver_df, silver_path, request_id)
     
     spark.stop()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Silver Transform: ?")
-    parser.add_argument("--bronze_source_table", required=True, help='Bronze table name, e.g. "sessions"')
-    parser.add_argument("--year", required=True, help='Year to filter Bronze table')
+    parser = argparse.ArgumentParser(description="Silver Transform: Meetings")
+    parser.add_argument("--year", required=True, help='Year to filter Meetings Bronze table')
     args = parser.parse_args()
 
-    main(bronze_source_table=args.bronze_source_table, year=args.year)
+    main(year=args.year)

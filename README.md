@@ -2,7 +2,7 @@
 
 ## Tools
 
-MinIO + Spark + Great Expectations + airflow
+MinIO + Spark + Great Expectations + Airflow
 
 ## API Fetch order
 
@@ -85,3 +85,20 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 
 - Provides detailed information about individual laps
 - Only Qualifying, Sprint and Race results are going to be relevant in order to be efficient with the ingestion
+
+## Silver tables
+
+1. meetings
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/meetings.py \
+  --year 2023'
+
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/tests/meetings.py \
+  --year 2023'
+```
