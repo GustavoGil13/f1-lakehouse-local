@@ -132,10 +132,32 @@ services:
     volumes:
       - airflow_pg:/var/lib/postgresql/data
 
+  airflow-init:
+    image: apache/airflow:${AIRFLOW_VERSION}
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    volumes:
+      - ./airflow/init:/opt/airflow/init:ro
+    command: >
+      bash -lc "
+      set -e;
+      airflow db migrate;
+      shopt -s nullglob;
+      for f in /opt/airflow/init/*.sh; do
+        echo Running init: $$f;
+        bash \"$$f\";
+      done;
+      airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} || true;
+      echo 'Airflow init done.';
+      "
+
   airflow-webserver:
     image: apache/airflow:${AIRFLOW_VERSION}
     depends_on:
       - postgres
+      - airflow-init
     env_file:
       - .env
     environment:
@@ -159,10 +181,9 @@ services:
 
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
+      - ./airflow/init:/opt/airflow/init:ro
       - /var/run/docker.sock:/var/run/docker.sock
-
       - ./spark/jobs:/opt/spark/jobs:ro
       - ./spark/conf:/opt/spark/conf:ro
       - ./spark/lib:/opt/spark/app_lib:ro
@@ -170,12 +191,17 @@ services:
     ports:
       - "8082:8080"
     command: >
-      bash -lc "pip install --no-cache-dir apache-airflow-providers-docker && airflow db migrate && airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} || true; airflow webserver"
+      bash -lc "
+      set -e;
+      airflow webserver
+      "
+
 
   airflow-scheduler:
     image: apache/airflow:${AIRFLOW_VERSION}
     depends_on:
       - postgres
+      - airflow-init
     env_file:
       - .env
     environment:
@@ -195,15 +221,20 @@ services:
 
     volumes:
       - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
+      - ./airflow/init:/opt/airflow/init:ro
       - /var/run/docker.sock:/var/run/docker.sock
-
       - ./spark/jobs:/opt/spark/jobs:ro
       - ./spark/conf:/opt/spark/conf:ro
       - ./spark/lib:/opt/spark/app_lib:ro
 
-    command: bash -lc "pip install --no-cache-dir apache-airflow-providers-docker && airflow scheduler"
+    command: >
+      bash -lc "
+      set -e;
+      airflow scheduler
+      "
+
+
 
 volumes:
   minio:
