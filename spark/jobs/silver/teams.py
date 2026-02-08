@@ -3,6 +3,7 @@ import os
 import sys
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 
 sys.path.append("/opt/spark/app_lib")
 
@@ -32,19 +33,31 @@ def main(silver_table_name: str, year: int) -> None:
 
     _, run_ts = setup_metadata_columns()
 
-    silver_df = (
+    base_df = (
         bronze_df_with_struct
         .filter(F.col("json.team_name").isNotNull())
         .select (
             F.xxhash64("json.team_name").alias("team_key")
             , F.col("json.team_name").alias("team_name")
-            , F.col("json.team_colour").alias("team_colour")
+            , F.upper(F.col("json.team_colour")).alias("team_colour") # upper because of inconsistency in the source data (e.g. team colour 6692FF vs 6692ff)
             , F.col("year").alias("year") # partition 
             , F.lit(run_ts).alias("run_ts")
             , F.col("ingestion_ts").cast("timestamp").alias("bronze_ingestion_ts") # easy to check if the data is up to date
             , F.col("request_id").alias("request_id") # FK to bronze layer
         )
-        .distinct()
+    )
+
+    # There are duplicates for example Ferrari has both E80020 and E8002D as team colours in 2024
+    # We want to keep the rows where the team_colour is most frequent
+    w_freq = Window.partitionBy("team_key", "team_colour")
+    df_with_freq = base_df.withColumn("colour_freq", F.count("*").over(w_freq))
+    w_pick = Window.partitionBy("team_key").orderBy(F.col("colour_freq").desc())
+
+    silver_df = (
+        df_with_freq
+        .withColumn("rn", F.row_number().over(w_pick))
+        .filter(F.col("rn") == 1)
+        .drop("rn", "colour_freq")
     )
 
     request_id = silver_df.select("request_id").distinct().first()[0]
