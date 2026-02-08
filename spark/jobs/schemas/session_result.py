@@ -1,3 +1,7 @@
+"""
+Schema for the session result data.
+"""
+
 from pyspark.sql.types import StructType, StructField, StringType, LongType, IntegerType, FloatType, BooleanType
 
 json_schema = StructType (

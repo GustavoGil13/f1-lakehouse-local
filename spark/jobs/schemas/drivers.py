@@ -1,3 +1,7 @@
+"""
+Schema for the drivers data.
+"""
+
 from pyspark.sql.types import StructType, StructField, StringType, LongType, IntegerType
 
 json_schema = StructType (

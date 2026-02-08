@@ -1,51 +1,48 @@
+# Purpose: Local dev docker-compose for the F1 lakehouse (MinIO + Spark cluster).
+# Tip: Copy secrets into a .env file at repo root (MINIO_ROOT_USER/MINIO_ROOT_PASSWORD, S3A_*).
+# Notes:
+# - Run with: docker compose up --build
+# - Access MinIO UI: http://localhost:9001  Spark UI: http://localhost:8080 (master), http://localhost:8081 (worker)
+# - Persist MinIO data via the named volume `minio`
+
 services:
   # ----------------------------
   # 1) MinIO = "S3-compatible" object storage
   # ----------------------------
-  # We use MinIO as a local replacement for AWS S3.
-  # Spark will read/write data to MinIO using the s3a:// protocol.
+  # Local replacement for AWS S3 used by Spark via s3a://
   minio:
     image: minio/minio:latest
-    # Run MinIO server and also expose the web console on port 9001
+    # Run MinIO server and expose console on port 9001
     command: server /data --console-address ":9001"
 
-    # Environment variables for MinIO admin credentials.
-    # These are loaded from your local .env file.
+    # Load admin credentials from .env
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
 
-    # A named volume stores data on your machine even if the container restarts.
-    # This is where MinIO keeps your buckets and files.
+    # Persist bucket data on the host
     volumes:
       - minio:/data
 
-    # Expose container ports to your host (your laptop):
-    # - 9000 = MinIO API (S3 endpoint)
-    # - 9001 = MinIO Web Console (UI)
+    # Host:container port mappings
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "9000:9000"   # S3 API endpoint
+      - "9001:9001"   # Web console
 
   # ----------------------------
   # 2) createbuckets = one-time setup container
   # ----------------------------
-  # This container uses the MinIO Client ("mc") to create the bucket we need.
-  # It runs a small shell script and then exits.
+  # Uses `mc` (MinIO client) to create the bucket defined in LAKEHOUSE_BUCKET.
+  # This container exits after creating the bucket; it is safe to re-run.
   createbuckets:
     image: minio/mc:latest
 
-    # Wait until MinIO service is started before running.
+    # Ensure MinIO is available before running the script
     depends_on:
       - minio
 
-    # entrypoint overrides the default command and runs our script.
-    # What the script does:
-    # 1) Configure an alias called "local" pointing to MinIO endpoint
-    # 2) Create a bucket (LAKEHOUSE_BUCKET) if it doesn't exist
-    #
-    # Notes:
-    # - "|| true" prevents the container from failing if the bucket already exists
+    # The script waits until MinIO is ready, configures an alias, and creates the bucket.
+    # `|| true` makes the step idempotent if bucket already exists.
     entrypoint: >
       /bin/sh -c "
       echo 'Waiting for MinIO to be ready...';
@@ -58,15 +55,10 @@ services:
       echo 'Done.';
       "
 
-
   # ----------------------------
   # 3) Spark Master
   # ----------------------------
-  # Spark runs as a cluster:
-  # - 1 master node manages the cluster
-  # - 1+ worker nodes execute the jobs
-  #
-  # We use Bitnami's Spark image to avoid manual installation.
+  # Single-node master used for local experiments. Image is built from Dockerfile.spark.
   spark-master:
     build:
       context: .
@@ -74,31 +66,32 @@ services:
     image: ${SPARK_IMAGE}
     container_name: spark-master
     environment:
-      # Passamos as credenciais S3A via env vars (vindas do .env)
+      # Provide S3A credentials + paths to Delta locations via environment (from .env).
+      # These are injected into the Spark container so jobs can read/write to MinIO.
       S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
       S3A_SECRET_KEY: ${S3A_SECRET_KEY}
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
-      BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
-      BRONZE_DRIVERS_DELTA_PATH: ${BRONZE_DRIVERS_DELTA_PATH}
-      BRONZE_MEETINGS_DELTA_PATH: ${BRONZE_MEETINGS_DELTA_PATH}
-      BRONZE_SESSION_RESULT_DELTA_PATH: ${BRONZE_SESSION_RESULT_DELTA_PATH}
-      BRONZE_LAPS_DELTA_PATH: ${BRONZE_LAPS_DELTA_PATH}
+      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
       SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
       DQ_DELTA_PATH: ${DQ_DELTA_PATH}
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
     volumes:
-      - ./spark/jobs:/opt/spark/jobs
-      - ./spark/conf:/opt/spark/conf
-      - ./spark/lib:/opt/spark/app_lib
+      - ./spark/jobs:/opt/spark/jobs     # place job scripts here
+      - ./spark/conf:/opt/spark/conf     # custom Spark configuration (spark-defaults.conf)
+      - ./spark/lib:/opt/spark/app_lib   # additional jars/libraries for Spark
     command: >
       /bin/bash -lc "
       /opt/spark/sbin/start-master.sh --host spark-master;
       tail -f /opt/spark/logs/*"
 
+  # ----------------------------
+  # Spark Worker
+  # ----------------------------
+  # Worker node that registers to the master. Keep it lightweight for local testing.
   spark-worker:
     build:
       context: .
@@ -108,20 +101,17 @@ services:
     depends_on:
       - spark-master
     environment:
+      # Mirror S3A and path env vars so worker tasks have same access
       S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
       S3A_SECRET_KEY: ${S3A_SECRET_KEY}
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
-      BRONZE_SESSIONS_DELTA_PATH: ${BRONZE_SESSIONS_DELTA_PATH}
-      BRONZE_DRIVERS_DELTA_PATH: ${BRONZE_DRIVERS_DELTA_PATH}
-      BRONZE_MEETINGS_DELTA_PATH: ${BRONZE_MEETINGS_DELTA_PATH}
-      BRONZE_SESSION_RESULT_DELTA_PATH: ${BRONZE_SESSION_RESULT_DELTA_PATH}
-      BRONZE_LAPS_DELTA_PATH: ${BRONZE_LAPS_DELTA_PATH}
+      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
       SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
       DQ_DELTA_PATH: ${DQ_DELTA_PATH}
     ports:
-      - "8081:8081"   # Spark worker UI
+      - "8081:8081"   # Spark worker web UI
     volumes:
       - ./spark/jobs:/opt/spark/jobs
       - ./spark/conf:/opt/spark/conf
@@ -134,7 +124,6 @@ services:
 # ----------------------------
 # Named volumes
 # ----------------------------
-# A named volume is managed by Docker and persists across restarts.
-# Here we persist MinIO data so you don't lose your lakehouse when containers restart.
+# Persisted Docker volume for MinIO data. Add more volumes if you want to persist Spark state.
 volumes:
   minio:

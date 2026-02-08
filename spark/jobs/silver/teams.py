@@ -1,28 +1,23 @@
-from __future__ import annotations
-
 import argparse
 import os
 import sys
-from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 sys.path.append("/opt/spark/app_lib")
 
 from logging_config import console_log_ingestion
-from utils import get_most_recent_data, gmt_offset_to_seconds
+from utils import get_most_recent_data, setup_metadata_columns
 
 sys.path.append("/opt/spark/jobs/..")
 
 from jobs.schemas.drivers import json_schema
 
 
-def main(year: int) -> None:
-    silver_table_name = "teams"
-
+def main(silver_table_name: str, year: int) -> None:
     spark = SparkSession.builder.appName(f"silver_transform_{silver_table_name}").getOrCreate()
 
-    bronze_path = os.environ.get("BRONZE_DRIVERS_DELTA_PATH")
+    bronze_path = os.environ.get("BRONZE_DELTA_PATH") + "drivers"
 
     bronze_df = (
         spark.read.format("delta")
@@ -35,7 +30,7 @@ def main(year: int) -> None:
 
     bronze_df_with_struct = most_recent_data.withColumn("json", F.from_json("raw", json_schema)).drop("raw")
 
-    run_ts = datetime.now(timezone.utc).isoformat()
+    _, run_ts = setup_metadata_columns()
 
     silver_df = (
         bronze_df_with_struct
@@ -66,14 +61,14 @@ def main(year: int) -> None:
         .save(silver_path)
     )
 
-    console_log_ingestion(silver_table_name, silver_df, silver_path, request_id)
+    console_log_ingestion(silver_table_name, silver_df.count(), silver_path, request_id)
     
     spark.stop()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Silver Transform: Countries")
-    parser.add_argument("--year", required=True, help='Year to filter Meetings Bronze table')
+    parser = argparse.ArgumentParser(description="Silver Transform: Teams")
+    parser.add_argument("--year", required=True, help='Year to filter Drivers Bronze table')
     args = parser.parse_args()
 
-    main(year=args.year)
+    main("teams", year=args.year)

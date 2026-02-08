@@ -1,4 +1,4 @@
-### ✅Circuits Table (from meetings table):
+### ✅ Circuits Table (from meetings table):
 - circuit_key
 - circuit_short_name
 - circuit_type
@@ -50,7 +50,7 @@
 - team_name
 - team_colour
 
-### ✅ Drivers Table (future: separate into drivers dim and a bridge table with the same granularity of Drivers): 
+### Drivers Table (future: separate into drivers dim and a bridge table with the same granularity of Drivers): 
 - driver_key (xxhash64 with meeting_key, session_key and driver_number)
 - team_key
 - meeting_key
@@ -63,7 +63,7 @@
 - headshot_url
 - year
 
-#### Drivers Information
+#### ✅ Drivers Information
 - driver_key (needs to be generated F.xxhash64("driver_number"))
 - team_key
 - first_name
