@@ -1,11 +1,20 @@
 FROM apache/spark:3.5.1-python3
 
-# Switch to root to install Python packages
+# Switch to root to install Python packages and copy files
 USER root
 
 # Install Python dependencies
 COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --no-cache-dir -r /tmp/requirements.txt
+
+# Copy Spark jobs + config + libs into the image
+# (assume build context is project root; adjust if needed)
+COPY spark/jobs /opt/spark/jobs
+COPY spark/conf /opt/spark/conf
+COPY spark/lib  /opt/spark/app_lib
+
+# Ensure spark user can read
+RUN chown -R spark:spark /opt/spark/jobs /opt/spark/conf /opt/spark/app_lib
 
 # Back to default Spark user
 USER spark

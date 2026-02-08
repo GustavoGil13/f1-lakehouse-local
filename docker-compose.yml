@@ -121,9 +121,90 @@ services:
       /opt/spark/sbin/start-worker.sh spark://spark-master:7077;
       tail -f /opt/spark/logs/*"
 
-# ----------------------------
-# Named volumes
-# ----------------------------
-# Persisted Docker volume for MinIO data. Add more volumes if you want to persist Spark state.
+  postgres:
+    image: postgres:16
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
+    volumes:
+      - airflow_pg:/var/lib/postgresql/data
+
+  airflow-webserver:
+    image: apache/airflow:${AIRFLOW_VERSION}
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
+      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
+
+      # usado pelos DAGs (sem hardcode)
+      DOCKER_NETWORK: ${DOCKER_NETWORK}
+      SPARK_IMAGE: ${SPARK_IMAGE}
+
+      # reusa vars do teu .env p/ jobs
+      S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
+      S3A_SECRET_KEY: ${S3A_SECRET_KEY}
+      S3A_ENDPOINT: ${S3A_ENDPOINT}
+      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
+      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
+      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
+
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      - ./spark/jobs:/opt/spark/jobs:ro
+      - ./spark/conf:/opt/spark/conf:ro
+      - ./spark/lib:/opt/spark/app_lib:ro
+
+    ports:
+      - "8082:8080"
+    command: >
+      bash -lc "pip install --no-cache-dir apache-airflow-providers-docker && airflow db migrate && airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} || true; airflow webserver"
+
+  airflow-scheduler:
+    image: apache/airflow:${AIRFLOW_VERSION}
+    depends_on:
+      - postgres
+    env_file:
+      - .env
+    environment:
+      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+
+      DOCKER_NETWORK: ${DOCKER_NETWORK}
+      SPARK_IMAGE: ${SPARK_IMAGE}
+
+      S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
+      S3A_SECRET_KEY: ${S3A_SECRET_KEY}
+      S3A_ENDPOINT: ${S3A_ENDPOINT}
+      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
+      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
+      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
+
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/logs:/opt/airflow/logs
+      - ./airflow/plugins:/opt/airflow/plugins
+      - /var/run/docker.sock:/var/run/docker.sock
+
+      - ./spark/jobs:/opt/spark/jobs:ro
+      - ./spark/conf:/opt/spark/conf:ro
+      - ./spark/lib:/opt/spark/app_lib:ro
+
+    command: bash -lc "pip install --no-cache-dir apache-airflow-providers-docker && airflow scheduler"
+
 volumes:
   minio:
+  airflow_pg:
