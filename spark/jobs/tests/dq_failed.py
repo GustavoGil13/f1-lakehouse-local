@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import os
 import json
@@ -22,8 +20,8 @@ def main(table_name: str, year: int) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check a Silver Table")
-    parser.add_argument("--table_name", required=True, help='Table Name')
-    parser.add_argument("--year", required=True, help='Year to filter Silver table')
+    parser.add_argument("--table_name", required=True, type=str, help='Table Name')
+    parser.add_argument("--year", required=True, type=int, help='Year to filter Silver table')
     args = parser.parse_args()
 
     main(table_name=args.table_name, year=args.year)

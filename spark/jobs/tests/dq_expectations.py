@@ -88,3 +88,8 @@ EXPECTATIONS_REGISTRY = {
     , "drivers": drivers_expectations
     , "session_result": session_result_expectations
 }
+
+
+if __name__ == "__main__":
+    # Module intended for import; no CLI behavior.
+    pass

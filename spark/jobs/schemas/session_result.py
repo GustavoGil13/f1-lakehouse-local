@@ -19,3 +19,8 @@ json_schema = StructType (
         , StructField("session_key", LongType())
     ]
 )
+
+
+if __name__ == "__main__":
+    # Module intended for import; no CLI behavior.
+    pass

@@ -22,3 +22,8 @@ json_schema = StructType (
         , StructField("year", IntegerType())
     ]
 )
+
+
+if __name__ == "__main__":
+    # Module intended for import; no CLI behavior.
+    pass
