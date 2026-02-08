@@ -4,7 +4,7 @@
 
 MinIO + Spark + Great Expectations + Airflow
 
-## API Fetch order
+## API Fetch order / Bronze Tables
 
 1. Meetings filtered by Year
 
@@ -19,7 +19,6 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 
 - Refers to a GP Weekend that includes multiple sessions.
 - Contains meeting_key, circuit_key and country_key
-- Circuit and Country data can be useful for Silver Circuit and Country tables
 
 2. Sessions filtered by Meetings meeting keys
 ```powershell
@@ -86,19 +85,132 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 - Provides detailed information about individual laps
 - Only Qualifying, Sprint and Race results are going to be relevant in order to be efficient with the ingestion
 
-## Silver tables
+## Silver Tables
 
-1. meetings
+1. Circuits
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/circuits.py \
+  --year 2023'
+```
+- Source: Meetings Bronze Table
+- Schema:
+  - circuit_key
+  - circuit_short_name
+  - circuit_type
+  - circuit_info_url
+  - circuit_image
+  - year
+  - run_ts
+  - bronze_ingestion_ts: kept so we can easily check if the silver data is up to date
+  - request_id: works as FK for Bronze Table
+
+
+2. Countries
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/countries.py \
+  --year 2023'
+```
+- Source: Meetings Bronze Table
+
+
+3. Locations
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/locations.py \
+  --year 2023'
+```
+- Source: Meetings Bronze Table
+
+4. Meetings
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/meetings.py \
   --year 2023'
+```
+- Source: Meetings Bronze Table
 
+5. Sessions
+```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/tests/meetings.py \
+  /opt/spark/jobs/silver/sessions.py \
   --year 2023'
+```
+- Source: Sessions Bronze Table
+
+
+6. Teams
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/teams.py \
+  --year 2023'
+```
+- Source: Drivers Bronze Table
+
+
+7. Drivers
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/drivers.py \
+  --year 2023'
+```
+- Source: Drivers Bronze Table
+
+
+8. Drivers Sessions Association (WIP)
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/?.py \
+  --year 2023'
+```
+- Source: Drivers Bronze Table
+
+
+9. Session Result
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/session_result.py \
+  --year 2023'
+```
+- Source: Session Result Bronze Table
+
+
+10. Laps
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/silver/laps.py \
+  --year 2023'
+```
+- Source: Laps Bronze Table
+
+
+### Data Quality Tests with GE
+```powershell
+docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
+  --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.ui.showConsoleProgress=false \
+  /opt/spark/jobs/tests/dq_runner.py \
+  --table ... \
+  --year ...'
 ```
