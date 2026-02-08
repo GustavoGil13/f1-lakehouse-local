@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import argparse
 import os
 import sys
@@ -11,11 +9,11 @@ sys.path.append("/opt/spark/app_lib")
 from logging_config import console_log_check
 
 def main(table_name: str, groupBy_key=None) -> None:
-    spark = SparkSession.builder.appName(f"check_bronze_table").getOrCreate()
+    spark = SparkSession.builder.appName(f"check_bronze_{table_name}").getOrCreate()
 
-    path = os.environ.get(f"BRONZE_{table_name.upper()}_DELTA_PATH")
+    output_path = os.environ.get("BRONZE_DELTA_PATH") + table_name
 
-    df = spark.read.format("delta").load(path)
+    df = spark.read.format("delta").load(output_path)
 
     if groupBy_key:
         (
@@ -25,7 +23,7 @@ def main(table_name: str, groupBy_key=None) -> None:
     else:
         df.groupBy("ingestion_ts").count().orderBy("ingestion_ts").show(10, False)
 
-    console_log_check(table_name, path, df)
+    console_log_check(table_name, output_path, df)
 
     spark.stop()
 
