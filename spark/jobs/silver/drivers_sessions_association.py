@@ -1,28 +1,24 @@
-from __future__ import annotations
-
 import argparse
 import os
 import sys
-from datetime import datetime, timezone
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
+from pyspark.sql.window import Window
 
 sys.path.append("/opt/spark/app_lib")
 
 from logging_config import console_log_ingestion
-from utils import get_most_recent_data, apply_gmt_offset
+from utils import get_most_recent_data, setup_metadata_columns
 
 sys.path.append("/opt/spark/jobs/..")
 
 from jobs.schemas.drivers import json_schema
 
 
-def main(year: int) -> None:
-    silver_table_name = "drivers"
-
+def main(silver_table_name: str, year: int) -> None:
     spark = SparkSession.builder.appName(f"silver_transform_{silver_table_name}").getOrCreate()
 
-    bronze_path = os.environ.get("BRONZE_DRIVERS_DELTA_PATH")
+    bronze_path = os.environ.get("BRONZE_DELTA_PATH") + "drivers"
 
     bronze_df = (
         spark.read.format("delta")
@@ -35,7 +31,7 @@ def main(year: int) -> None:
 
     bronze_df_with_struct = most_recent_data.withColumn("json", F.from_json("raw", json_schema)).drop("raw")
 
-    run_ts = datetime.now(timezone.utc).isoformat()
+    _, run_ts = setup_metadata_columns()
 
     silver_df = (
         bronze_df_with_struct
@@ -48,16 +44,10 @@ def main(year: int) -> None:
                     , F.col("json.session_key")
                     , F.col("json.driver_number")
                 )
-            ).alias("driver_key")
+            ).alias("drivers_sessions_association_key")
+            , F.xxhash64(F.col("json.driver_number")).alias("driver_key")
             , F.col("json.meeting_key").alias("meeting_key")
             , F.col("json.session_key").alias("session_key")
-            , F.xxhash64("json.team_name").alias("team_key")
-            , F.col("json.driver_number").alias("driver_number")
-            , F.col("json.first_name").alias("first_name")
-            , F.col("json.last_name").alias("last_name")
-            , F.col("json.name_acronym").alias("name_acronym")
-            , F.col("json.broadcast_name").alias("broadcast_name")
-            , F.col("json.headshot_url").alias("headshot_url")
             , F.col("year").alias("year") # partition 
             , F.lit(run_ts).alias("run_ts")
             , F.col("ingestion_ts").cast("timestamp").alias("bronze_ingestion_ts") # easy to check if the data is up to date
@@ -79,14 +69,14 @@ def main(year: int) -> None:
         .save(silver_path)
     )
 
-    console_log_ingestion(silver_table_name, silver_df, silver_path, request_id)
+    console_log_ingestion(silver_table_name, silver_df.count(), silver_path, request_id)
     
     spark.stop()
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Silver Transform: Countries")
-    parser.add_argument("--year", required=True, help='Year to filter Meetings Bronze table')
+    parser = argparse.ArgumentParser(description="Silver Transform: Drivers Sessions Association")
+    parser.add_argument("--year", required=True, help='Year to filter Drivers Bronze table')
     args = parser.parse_args()
 
-    main(year=args.year)
+    main("drivers_sessions_association", year=args.year)

@@ -172,12 +172,12 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
 - Source: Drivers Bronze Table
 
 
-8. Drivers Sessions Association (WIP)
+8. Drivers Sessions Association
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
   --conf spark.ui.showConsoleProgress=false \
-  /opt/spark/jobs/silver/?.py \
+  /opt/spark/jobs/silver/drivers_sessions_association.py \
   --year 2023'
 ```
 - Source: Drivers Bronze Table
