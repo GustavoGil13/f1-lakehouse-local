@@ -92,6 +92,16 @@ def apply_gmt_offset(ts_col: Column, offset_col: Column) -> Column:
     return F.from_unixtime(F.unix_timestamp(ts_col) - gmt_offset_to_seconds(offset_col)).cast("timestamp")
 
 
+def map_sector_array(col_: Column, sector_map: Dict) -> Column:
+    # map sectors code to the respective colors
+    mapping_expr = F.create_map(*[F.lit(x) for kv in sector_map.items() for x in kv])
+    # transforms [2049, 2051, ...] -> ["green sector", "purple sector", ...]
+    return F.transform (
+        col_
+        , lambda x: F.coalesce(mapping_expr[x.cast("int")], F.lit("unknown"))
+    )
+
+
 if __name__ == "__main__":
     # Module intended for import; no CLI behavior.
     pass

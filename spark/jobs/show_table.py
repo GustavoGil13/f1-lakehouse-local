@@ -12,7 +12,7 @@ def main(os_path_var: str, table_name: str, year: int) -> None:
 
     df = spark.read.format("delta").load(path).filter(f"year = {year}")
 
-    df2 = df.filter("team_key = 764461175832650448")
+    df2 = df.filter("laps_key = -9218852824813238769")
     # df2 = df.filter("driver_key = -8517303739244913245")
     # df2 = df.groupBy("driver_key", "name_acronym").count().filter(F.col("count") > 1)
 

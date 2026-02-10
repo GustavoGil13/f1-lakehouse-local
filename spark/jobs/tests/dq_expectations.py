@@ -85,6 +85,16 @@ def drivers_sessions_association_expectations(gdf):
     gdf.expect_column_values_to_not_be_null("driver_key")
 
 
+def laps_expectations(gdf):
+    gdf.expect_table_row_count_to_be_between(min_value=1, max_value=None)
+    gdf.expect_column_values_to_be_unique("laps_key")
+    gdf.expect_column_values_to_not_be_null("laps_key")
+    gdf.expect_column_values_to_not_be_null("meeting_key")
+    gdf.expect_column_values_to_not_be_null("session_key")
+    gdf.expect_column_values_to_not_be_null("lap_number")
+    gdf.expect_column_values_to_not_be_null("driver_number")
+
+
 EXPECTATIONS_REGISTRY = {
     "circuits": circuits_expectations
     , "countries": countries_expectations
@@ -95,6 +105,7 @@ EXPECTATIONS_REGISTRY = {
     , "drivers": drivers_expectations
     , "session_result": session_result_expectations
     , "drivers_sessions_association": drivers_sessions_association_expectations
+    , "laps": laps_expectations
 }
 
 
