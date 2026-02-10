@@ -1,12 +1,59 @@
-# f1-lakehouse-local
+# 🏎️ F1 Lakehouse Local
 
-## Tools
+## 📌 Overview
 
-MinIO + Spark + Great Expectations + Airflow
+**f1-lakehouse-local** is a local Data Lakehouse project designed to ingest, process, validate, and organize Formula 1 data from external APIs.
+It aims to showcase modern data engineering practices including distributed processing, layered lakehouse architecture, orchestration, and data quality enforcement.
 
-## API Fetch order / Bronze Tables
+This repository can be used both as:
 
-1. Meetings filtered by Year
+* A professional data engineering portfolio project
+* A reproducible local lakehouse sandbox
+* A learning environment for Spark + Airflow + object storage architectures
+
+---
+
+## 🏗️ Architecture Overview
+
+### High-Level Data Flow
+
+WIP
+
+---
+
+### Infrastructure Stack
+
+WIP
+
+---
+
+## 🧰 Technology Stack
+
+* Apache Spark → distributed ETL processing
+* MinIO → S3-compatible object storage (Data Lake)
+* Apache Airflow → pipeline orchestration
+* Great Expectations → data quality validation
+* Docker Compose → fully reproducible local environment
+
+---
+
+## 🚀 Running the Project
+
+Start the environment:
+
+```bash
+docker compose up -d
+```
+
+All ingestion and transformation jobs are executed through the Spark container using `spark-submit`.
+
+---
+
+# 🥉 Bronze Layer
+
+The Bronze layer stores raw API data with minimal transformation, ensuring traceability and replay capability.
+
+## 1. Meetings (Filtered by Year)
 
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
@@ -17,10 +64,18 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --year 2023'
 ```
 
-- Refers to a GP Weekend that includes multiple sessions.
-- Contains meeting_key, circuit_key and country_key
+Represents each race weekend and includes keys such as:
 
-2. Sessions filtered by Meetings meeting keys
+* `meeting_key`
+* `circuit_key`
+* `country_key`
+
+Serves as the foundational dataset for subsequent ingestion.
+
+---
+
+## 2. Sessions (Filtered by Meetings)
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -32,11 +87,13 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --target_endpoint sessions'
 ```
 
-- Refers to a distinct period of track activity during a GP weekend (most common practice, qualifying and race)
-- Contains session_key, meeting_key, circuit_key, country_key
-- Even though Sessions contains circuit_key and country_key let's assume that Meetings is the Source of Truth
+Represents track activity periods such as practice, qualifying, sprint, and race sessions.
+Meetings remain the source of truth for location metadata.
 
-3. Drivers
+---
+
+## 3. Drivers
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -48,11 +105,12 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --target_endpoint drivers'
 ```
 
-- Provides information about drivers for each session
-- In a year, there are around 118 sessions distributed by 24 meetings
-- Logically, Drivers should be filtered by Session session_key but doing so makes almost 5x more API calls (118/24)
+Driver ingestion is filtered by meeting rather than session to reduce API call volume significantly.
 
-4. Session Results filtered by Meetings meeting keys
+---
+
+## 4. Session Results
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -64,10 +122,12 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --target_endpoint session_result'
 ```
 
-- Provides standings after a session
-- Filtering by Meetings meeting keys retrieves the standings for all sessions within a year
+Provides classification results for each session across the season.
 
-5. Laps filtered by Sessions session_key and Sessions session_type different then "Practice"
+---
+
+## 5. Laps (Filtered Sessions)
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -82,12 +142,16 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --target_endpoint_filter_value Practice'
 ```
 
-- Provides detailed information about individual laps
-- Only Qualifying, Sprint and Race results are going to be relevant in order to be efficient with the ingestion
+Only qualifying, sprint, and race sessions are ingested for efficiency.
 
-## Silver Tables
+---
 
-1. Circuits
+# 🥈 Silver Layer
+
+The Silver layer standardizes and prepares data for analytics.
+
+## Circuits
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -95,20 +159,26 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/circuits.py \
   --year 2023'
 ```
-- Source: Meetings Bronze Table
-- Schema:
-  - circuit_key
-  - circuit_short_name
-  - circuit_type
-  - circuit_info_url
-  - circuit_image
-  - year
-  - run_ts
-  - bronze_ingestion_ts: kept so we can easily check if the silver data is up to date
-  - request_id: works as FK for Bronze Table
+
+Source: Meetings Bronze table.
+
+| Field Name          | Datatype  | Short Description                  |
+| ------------------- | --------- | ---------------------------------- |
+| circuit_key         | int       | Unique identifier of the circuit.  |
+| circuit_short_name  | string    | Short/display circuit name.        |
+| circuit_type        | string    | Circuit category/type from source. |
+| circuit_info_url    | string    | Circuit information URL.           |
+| circuit_image       | string    | Circuit image URL.                 |
+| year                | int       | Season year (partition field).     |
+| run_ts              | timestamp | Timestamp when Silver job ran.     |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.        |
+| request_id          | string    | Identifier of ingestion request.   |
 
 
-2. Countries
+---
+
+## Countries
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -116,10 +186,25 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/countries.py \
   --year 2023'
 ```
-- Source: Meetings Bronze Table
+
+Source: Meetings Bronze table.
+
+| Field Name          | Datatype  | Short Description                 |
+| ------------------- | --------- | --------------------------------- |
+| country_key         | int       | Unique identifier of the country. |
+| country_code        | string    | Country ISO-style code.           |
+| country_name        | string    | Country name.                     |
+| country_flag        | string    | Country flag asset/URL.           |
+| year                | int       | Season year (partition field).    |
+| run_ts              | timestamp | Timestamp when Silver job ran.    |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.       |
+| request_id          | string    | Identifier of ingestion request.  |
 
 
-3. Locations
+---
+
+## Locations
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -127,9 +212,26 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/locations.py \
   --year 2023'
 ```
-- Source: Meetings Bronze Table
 
-4. Meetings
+Source: Meetings Bronze table.
+
+| Field Name          | Datatype  | Short Description                |
+| ------------------- | --------- | -------------------------------- |
+| location_key        | bigint    | Hashed identifier for location.  |
+| country_key         | int       | FK to countries table.           |
+| location            | string    | Location/city name.              |
+| gmt_offset          | string    | Original GMT offset string.      |
+| gmt_offset_seconds  | int       | Offset converted to seconds.     |
+| year                | int       | Season year (partition field).   |
+| run_ts              | timestamp | Timestamp when Silver job ran.   |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.      |
+| request_id          | string    | Identifier of ingestion request. |
+
+
+---
+
+## Meetings
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -137,9 +239,29 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/meetings.py \
   --year 2023'
 ```
-- Source: Meetings Bronze Table
+Source: Meetings Bronze table.
 
-5. Sessions
+| Field Name            | Datatype  | Short Description                  |
+| --------------------- | --------- | ---------------------------------- |
+| meeting_key           | int       | Unique meeting identifier.         |
+| country_key           | int       | FK to countries table.             |
+| location_key          | bigint    | FK to locations table.             |
+| meeting_name          | string    | Meeting short name.                |
+| meeting_official_name | string    | Official meeting name.             |
+| local_ts_start        | timestamp | Local start timestamp.             |
+| local_ts_end          | timestamp | Local end timestamp.               |
+| ts_start              | timestamp | Start timestamp normalized to UTC. |
+| ts_end                | timestamp | End timestamp normalized to UTC.   |
+| year                  | int       | Season year (partition field).     |
+| run_ts                | timestamp | Timestamp when Silver job ran.     |
+| bronze_ingestion_ts   | timestamp | Bronze ingestion timestamp.        |
+| request_id            | string    | Identifier of ingestion request.   |
+
+
+---
+
+## Sessions
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -147,10 +269,30 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/sessions.py \
   --year 2023'
 ```
-- Source: Sessions Bronze Table
+Source: Sessions Bronze table.
+
+| Field Name          | Datatype  | Short Description                  |
+| ------------------- | --------- | ---------------------------------- |
+| session_key         | int       | Unique session identifier.         |
+| meeting_key         | int       | FK to meetings table.              |
+| country_key         | int       | FK to countries table.             |
+| location_key        | bigint    | FK to locations table.             |
+| session_name        | string    | Session display name.              |
+| session_type        | string    | Practice/Qualifying/Sprint/Race.   |
+| local_ts_start      | timestamp | Local start timestamp.             |
+| local_ts_end        | timestamp | Local end timestamp.               |
+| ts_start            | timestamp | Start timestamp normalized to UTC. |
+| ts_end              | timestamp | End timestamp normalized to UTC.   |
+| year                | int       | Season year (partition field).     |
+| run_ts              | timestamp | Timestamp when Silver job ran.     |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.        |
+| request_id          | string    | Identifier of ingestion request.   |
 
 
-6. Teams
+---
+
+## Teams
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -158,10 +300,24 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/teams.py \
   --year 2023'
 ```
-- Source: Drivers Bronze Table
+
+Source: Drivers Bronze table.
+
+| Field Name          | Datatype  | Short Description                  |
+| ------------------- | --------- | ---------------------------------- |
+| team_key            | bigint    | Hashed team identifier.            |
+| team_name           | string    | Team name.                         |
+| team_colour         | string    | Team color (normalized uppercase). |
+| year                | int       | Season year (partition field).     |
+| run_ts              | timestamp | Timestamp when Silver job ran.     |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.        |
+| request_id          | string    | Identifier of ingestion request.   |
 
 
-7. Drivers
+---
+
+## Drivers
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -169,10 +325,29 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/drivers.py \
   --year 2023'
 ```
-- Source: Drivers Bronze Table
+
+Source: Drivers Bronze table.
+
+| Field Name          | Datatype  | Short Description                |
+| ------------------- | --------- | -------------------------------- |
+| driver_key          | bigint    | Hashed driver identifier.        |
+| team_key            | bigint    | FK to teams table.               |
+| driver_number       | int       | Car/driver number.               |
+| first_name          | string    | Driver first name.               |
+| last_name           | string    | Driver last name.                |
+| name_acronym        | string    | 3-letter acronym.                |
+| broadcast_name      | string    | Broadcast display name.          |
+| headshot_url        | string    | Driver image URL.                |
+| year                | int       | Season year (partition field).   |
+| run_ts              | timestamp | Timestamp when Silver job ran.   |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.      |
+| request_id          | string    | Identifier of ingestion request. |
 
 
-8. Drivers Sessions Association
+---
+
+## Driver‑Session Association
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -180,10 +355,24 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/drivers_sessions_association.py \
   --year 2023'
 ```
-- Source: Drivers Bronze Table
+
+Source: Drivers Bronze table.
+| Field Name                       | Datatype  | Short Description                |
+| -------------------------------- | --------- | -------------------------------- |
+| drivers_sessions_association_key | bigint    | Hashed relationship key.         |
+| driver_key                       | bigint    | FK to drivers table.             |
+| meeting_key                      | int       | FK to meetings table.            |
+| session_key                      | int       | FK to sessions table.            |
+| year                             | int       | Season year (partition field).   |
+| run_ts                           | timestamp | Timestamp when Silver job ran.   |
+| bronze_ingestion_ts              | timestamp | Bronze ingestion timestamp.      |
+| request_id                       | string    | Identifier of ingestion request. |
 
 
-9. Session Result
+---
+
+## Session Results
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -191,10 +380,32 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/session_result.py \
   --year 2023'
 ```
-- Source: Session Result Bronze Table
+Source: Session Result Bronze table.
+
+| Field Name          | Datatype  | Short Description                 |
+| ------------------- | --------- | --------------------------------- |
+| session_result_key  | bigint    | Hashed session result identifier. |
+| meeting_key         | int       | FK to meetings table.             |
+| session_key         | int       | FK to sessions table.             |
+| driver_key          | bigint    | FK to drivers table.              |
+| dnf                 | boolean   | Did not finish flag.              |
+| dns                 | boolean   | Did not start flag.               |
+| dsq                 | boolean   | Disqualified flag.                |
+| duration            | string    | Total session time.               |
+| gap_to_leader       | string    | Gap to leader.                    |
+| number_of_laps      | int       | Number of laps completed.         |
+| points              | double    | Points scored.                    |
+| position            | int       | Final classification position.    |
+| year                | int       | Season year (partition field).    |
+| run_ts              | timestamp | Timestamp when Silver job ran.    |
+| bronze_ingestion_ts | timestamp | Bronze ingestion timestamp.       |
+| request_id          | string    | Identifier of ingestion request.  |
 
 
-10. Laps
+---
+
+## Laps
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -202,10 +413,76 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   /opt/spark/jobs/silver/laps.py \
   --year 2023'
 ```
-- Source: Laps Bronze Table
+
+Source: Laps Bronze table.
+| Field Name                      | Datatype      | Short Description                |
+| ------------------------------- | ------------- | -------------------------------- |
+| laps_key                        | bigint        | Hashed lap identifier.           |
+| meeting_key                     | int           | FK to meetings table.            |
+| session_key                     | int           | FK to sessions table.            |
+| lap_number                      | int           | Lap number.                      |
+| driver_number                   | int           | Driver/car number.               |
+| ts_start                        | timestamp     | Lap start timestamp.             |
+| duration_sector_1               | double        | Sector 1 duration.               |
+| duration_sector_2               | double        | Sector 2 duration.               |
+| duration_sector_3               | double        | Sector 3 duration.               |
+| first_intermediate_point_speed  | double        | Intermediate speed I1.           |
+| second_intermediate_point_speed | double        | Intermediate speed I2.           |
+| is_pit_out_lap                  | boolean       | Indicates pit out lap.           |
+| lap_duration                    | double        | Total lap duration.              |
+| segments_sector_1_codes         | array\<int>    | Sector 1 segment codes.          |
+| segments_sector_1_colors        | array\<string> | Sector 1 mapped colors/values.   |
+| segments_sector_2_codes         | array\<int>    | Sector 2 segment codes.          |
+| segments_sector_2_colors        | array\<string> | Sector 2 mapped colors/values.   |
+| segments_sector_3_codes         | array\<int>    | Sector 3 segment codes.          |
+| segments_sector_3_colors        | array\<string> | Sector 3 mapped colors/values.   |
+| speed_trap_speed                | double        | Speed trap value.                |
+| year                            | int           | Season year (partition field).   |
+| run_ts                          | timestamp     | Timestamp when Silver job ran.   |
+| bronze_ingestion_ts             | timestamp     | Bronze ingestion timestamp.      |
+| request_id                      | string        | Identifier of ingestion request. |
+
+---
+## 🥇 Gold Layer (WIP)
+
+The Gold layer will contain analytics-ready datasets derived from the Silver layer.
+The following ideas are feasible using only the currently available Silver tables.
+
+### 1) `gold_driver_season_summary`
+
+**Goal:** season-level KPIs per driver (points, avg position, DNF rate, etc.)
+
+---
+
+### 2) `gold_team_season_summary`
+
+**Goal:** season-level KPIs per team (points, avg position, driver contribution)
+
+---
+
+### 3) `gold_fastest_laps_by_session`
+
+**Goal:** per session, identify fastest lap per driver and overall fastest lap.
+
+---
+
+### 4) `gold_driver_points_progression`
+
+**Goal:** cumulative points per driver across the season over time (standings progression).
+
+---
+
+### 5) `gold_circuit_performance_summary`
+
+**Goal:** aggregated driver/team performance by circuit (points, avg position, etc.)
 
 
-### Data Quality Tests with GE
+---
+
+# ✅ Data Quality Validation
+
+Run Great Expectations validation:
+
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
@@ -214,3 +491,24 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --table ... \
   --year ...'
 ```
+
+These checks typically include:
+
+* Schema validation
+* Referential integrity
+* Null checks
+* Consistency checks
+
+---
+
+## 🎯 Project Goals
+
+This project demonstrates:
+
+* End‑to‑end lakehouse architecture design
+* Distributed data processing with Spark
+* Local cloud‑style infrastructure
+* Data quality enforcement
+* Reproducible data pipelines
+
+It can serve as a foundation for analytics layers and BI dashboards!
