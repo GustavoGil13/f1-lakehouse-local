@@ -3,6 +3,7 @@ from airflow import DAG
 from controllers.airflow_services import spark_task
 from conf.dag_config import SILVER_DAG_ID, SILVER_DAG_CONFIG
 
+
 with DAG (
     dag_id = SILVER_DAG_ID
     , start_date = datetime(2022, 1, 1)

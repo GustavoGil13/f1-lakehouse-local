@@ -1,8 +1,3 @@
-"""
-Utility helpers for Spark jobs.
-
-"""
-
 import json
 import uuid
 from datetime import datetime, timezone
@@ -10,7 +5,9 @@ from typing import Any, Dict, List
 from pyspark.sql import DataFrame
 from pyspark.sql.column import Column
 from pyspark.sql import functions as F
+
 from logging_config import console_log_ingestion_ts
+
 
 def json_serialize(obj: dict) -> str:
     """
@@ -18,11 +15,13 @@ def json_serialize(obj: dict) -> str:
     """
     return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
 
+
 def setup_metadata_columns():
     """
     Generate a new request_id (UUID) and ingestion_ts (current UTC timestamp in ISO format).
     """
     return str(uuid.uuid4()), datetime.now(timezone.utc).isoformat()
+
 
 def extract_failed_expectations(result) -> List[Dict[str, Any]]:
     """
@@ -48,6 +47,7 @@ def extract_failed_expectations(result) -> List[Dict[str, Any]]:
                 }
             )
     return failed
+
 
 def failed_expectations_json(result) -> str:
     """Shortcut: return failed expectations as a JSON string (safe default=str)."""

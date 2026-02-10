@@ -1,17 +1,10 @@
-"""
-Logging helpers for Spark jobs.
-
-Purpose:
-- Centralize simple console logging used by ingestion/check/DQ jobs.
-- Keep messages consistent and easy to grep in container logs.
-"""
 import logging
 from pyspark.sql import DataFrame
 from typing import List
 
 # Basic console logger configuration for local/dev runs.
-# Adjust level/format or replace with log4j2 when running inside Spark containers.
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
 
 def console_log_ingestion(endpoint: str, count: int, delta_path: str, request_id: str) -> None:
     """
@@ -25,6 +18,7 @@ def console_log_ingestion(endpoint: str, count: int, delta_path: str, request_id
     """
     logging.info(f"OK: endpoint={endpoint} rows={count} output={delta_path} request_id={request_id}")
 
+
 def console_log_check(table_name: str, path: str, df: DataFrame) -> None:
     """
     Log a quick data check (rows) for a table or path.
@@ -36,6 +30,7 @@ def console_log_check(table_name: str, path: str, df: DataFrame) -> None:
     """
     logging.info(f"OK: endpoint={table_name} path={path} rows={df.count()}")
 
+
 def console_log_ingestion_ts(ts: str, df: DataFrame) -> None:
     """
     Log ingestion timestamp validation results.
@@ -46,6 +41,7 @@ def console_log_ingestion_ts(ts: str, df: DataFrame) -> None:
     """
     logging.info(f"OK: max_ingestion_ts={ts}, rows={df.count()}")
 
+
 def console_log_key(key: str, keys_list: List) -> None:
     """
     Log the number of keys collected/processed.
@@ -55,6 +51,7 @@ def console_log_key(key: str, keys_list: List) -> None:
         keys_list: iterable/list of keys (kept generic to accept different types).
     """
     logging.info(f"OK: {key}_list_length={len(keys_list)}")
+
 
 def console_log_dq(endpoint: str, path:str) -> None:
     """
