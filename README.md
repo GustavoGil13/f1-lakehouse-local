@@ -7,7 +7,6 @@ It aims to showcase modern data engineering practices including distributed proc
 
 This repository can be used both as:
 
-* A professional data engineering portfolio project
 * A reproducible local lakehouse sandbox
 * A learning environment for Spark + Airflow + object storage architectures
 
