@@ -15,17 +15,7 @@ This repository can be used both as:
 
 ## 🏗️ Architecture Overview
 
-### High-Level Data Flow
-
-WIP
-
----
-
-### Infrastructure Stack
-
-WIP
-
----
+![Screenshot](arquitecture.png)
 
 ## 🧰 Technology Stack
 
