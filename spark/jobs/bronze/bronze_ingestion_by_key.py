@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from typing import Callable, Dict
 
@@ -10,8 +9,12 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from openf1_client import fetch_json
-from utils import json_serialize, get_most_recent_data, setup_metadata_columns
+from utils import json_serialize, get_most_recent_data, setup_metadata_columns, setup_db_location, create_db_if_not_exists
 from logging_config import console_log_key, console_log_ingestion
+
+sys.path.append("/opt/spark/jobs/..")
+
+from jobs.schemas.ingestion_by_key import json_schema
 
 OPERATORS: Dict[str, Callable] = {
     "eq": lambda c, v: c == v
@@ -28,15 +31,13 @@ def main (
         , target_endpoint_filter_value=None
     ) -> None:
 
-    spark = SparkSession.builder.appName("bronze_ingestion_by_key").getOrCreate()
+    spark = SparkSession.builder.appName(f"bronze_ingestion_by_key_{source_endpoint}_{key}_{target_endpoint}_{year}").enableHiveSupport().getOrCreate()
 
-    source_delta_path = os.environ.get("BRONZE_DELTA_PATH") + source_endpoint
-    target_delta_path = os.environ.get("BRONZE_DELTA_PATH") + target_endpoint
+    bronze_db, bronze_db_location = setup_db_location("bronze")
 
-    # Read source data filtered by year
+    # Read bronze table filtered by year
     session_filtered_by_year = (
-            spark.read.format("delta")
-            .load(source_delta_path)
+            spark.table(f"{bronze_db}.{source_endpoint}")
             .withColumn("year", F.get_json_object("raw", "$.year").cast("int"))
             .withColumn(key, F.get_json_object("raw", f"$.{key}").cast("int"))
             .filter(
@@ -68,7 +69,7 @@ def main (
         url, params_used, http_status, payload = fetch_json(target_endpoint, params={key: k})
         
         for item in payload:
-            all_raw.append(
+            all_raw.append (
                 {
                     "raw": json_serialize(item)
                     , "ingestion_ts": ingestion_ts
@@ -77,15 +78,26 @@ def main (
                     , "request_params": json_serialize(params_used)
                     , "http_status": http_status
                     , "year": year
-                    , "sessions_ingestion_ts": max_ingestion_ts
+                    , "source_endpoint_ingestion_ts": max_ingestion_ts
                 }
             )
     
-    df = spark.createDataFrame(all_raw)
-    
-    df.write.format("delta").mode("append").save(target_delta_path)
+    df = spark.createDataFrame(all_raw, schema=json_schema)
 
-    console_log_ingestion(target_endpoint, df.count(), target_delta_path, request_id)
+    # create database if not exists with location (idempotent)
+    create_db_if_not_exists(spark, bronze_db, bronze_db_location)
+    
+    output_path = f"{bronze_db_location}/{target_endpoint}"
+
+    # Register table in Hive metastore (idempotent)
+    (
+        df.write.format("delta")
+        .mode("append")
+        .option("path", output_path)
+        .saveAsTable(f"{bronze_db}.{target_endpoint}")
+    )
+
+    console_log_ingestion(target_endpoint, df.count(), output_path, request_id)
 
     spark.stop()
 

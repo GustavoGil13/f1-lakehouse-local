@@ -7,13 +7,19 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from logging_config import console_log_check
+from utils import setup_db_location
 
 def main(table_name: str, groupBy_key=None) -> None:
     spark = SparkSession.builder.appName(f"check_bronze_{table_name}").enableHiveSupport().getOrCreate()
 
-    output_path = os.environ.get("BRONZE_DB") + '.' + table_name
+    bronze_db, bronze_db_location = setup_db_location("bronze")
 
-    df = spark.table(output_path)
+    df = spark.table(f"{bronze_db}.{table_name}")
+
+    spark.sql(f'SHOW TABLES IN {bronze_db}').show(truncate=False)
+
+    # Isto pode ler o Delta log em S3
+    spark.sql(f'DESCRIBE EXTENDED {bronze_db}.{table_name}').show(200, truncate=False)
 
     if groupBy_key:
         (
@@ -23,7 +29,7 @@ def main(table_name: str, groupBy_key=None) -> None:
     else:
         df.groupBy("ingestion_ts").count().orderBy("ingestion_ts").show(10, False)
 
-    console_log_check(table_name, output_path, df)
+    console_log_check(table_name, f"{bronze_db_location}/{table_name}", df)
 
     spark.stop()
 

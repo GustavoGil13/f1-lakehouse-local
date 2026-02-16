@@ -1,4 +1,3 @@
-import os
 import argparse
 import sys
 from pyspark.sql import SparkSession
@@ -8,7 +7,7 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from openf1_client import fetch_json
-from utils import json_serialize, setup_metadata_columns
+from utils import json_serialize, setup_metadata_columns, create_db_if_not_exists, setup_db_location
 from logging_config import console_log_ingestion
 
 
@@ -32,14 +31,13 @@ def main(endpoint: str, year: int) -> None:
           .withColumn("request_id", F.lit(request_id))
           .withColumn("source_url", F.lit(url))
           .withColumn("request_params", F.lit(json_serialize(params_used)))
-          .withColumn("http_status", F.lit(int(http_status)))
+          .withColumn("http_status", F.lit(http_status).cast("int"))
     )
 
     # Bronze write (append)
-    bronze_db = os.environ.get("BRONZE_DB")
-    bronze_db_location = os.environ.get("HIVE_WAREHOUSE_DIR") + "/" + bronze_db
+    bronze_db , bronze_db_location = setup_db_location("bronze")
     # create database if not exists with location (idempotent)
-    spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_db} LOCATION '{bronze_db_location}'")
+    create_db_if_not_exists(spark, bronze_db, bronze_db_location)
 
     output_path = f"{bronze_db_location}/{endpoint}"
 

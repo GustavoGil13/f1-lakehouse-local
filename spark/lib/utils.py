@@ -1,7 +1,8 @@
 import json
 import uuid
+import os
 from datetime import datetime, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 from pyspark.sql import DataFrame
 from pyspark.sql.column import Column
 from pyspark.sql import functions as F
@@ -100,6 +101,32 @@ def map_sector_array(col_: Column, sector_map: Dict) -> Column:
         col_
         , lambda x: F.coalesce(mapping_expr[x.cast("int")], F.lit("unknown"))
     )
+
+def create_db_if_not_exists(spark, db_name: str, db_location: str) -> None:
+    """
+    Create a database in Spark SQL if it does not already exist.
+
+    Args:
+        spark: SparkSession object
+        db_name: Name of the database to create
+        db_location: Filesystem location for the database (e.g. HDFS path)
+    """
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {db_name} LOCATION '{db_location}'")
+
+
+def setup_db_location(layer: str) -> Tuple[str, str]:
+    """
+    Helper to construct a database location path based on environment variables and layer name.
+
+    Args:
+        layer: Name of the data layer (e.g. "bronze", "silver", "gold")
+
+    Returns:
+        Database Name and Full path for the database location.
+    """
+    warehouse_dir = os.environ.get("HIVE_WAREHOUSE_DIR")
+    db_name = os.environ.get(f"{layer.upper()}_DB")
+    return db_name, f"{warehouse_dir}/{db_name}"
 
 
 if __name__ == "__main__":
