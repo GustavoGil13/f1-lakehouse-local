@@ -28,9 +28,22 @@ This repository can be used both as:
 
 ## 🚀 Running the Project
 
+We need to included aws-hadoop and aws-java-sdk bundle in jars folder under hive, it provide minio access to hive. Download both jars using the following commands:
+
+```powershell
+Invoke-WebRequest `
+  -Uri "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/3.3.4/hadoop-aws-3.3.4.jar" `
+  -OutFile ".\hive\jars\hadoop-aws-3.3.4.jar"
+
+
+Invoke-WebRequest `
+  -Uri "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk-bundle/1.12.262/aws-java-sdk-bundle-1.12.262.jar" `
+  -OutFile ".\hive\jars\aws-java-sdk-bundle-1.12.262.jar"
+```
+
 Start the environment:
 
-```bash
+```powershell
 docker compose up -d
 ```
 
@@ -47,6 +60,7 @@ The Bronze layer stores raw API data with minimal transformation, ensuring trace
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_year.py \
   --endpoint meetings \

@@ -9,11 +9,11 @@ sys.path.append("/opt/spark/app_lib")
 from logging_config import console_log_check
 
 def main(table_name: str, groupBy_key=None) -> None:
-    spark = SparkSession.builder.appName(f"check_bronze_{table_name}").getOrCreate()
+    spark = SparkSession.builder.appName(f"check_bronze_{table_name}").enableHiveSupport().getOrCreate()
 
-    output_path = os.environ.get("BRONZE_DELTA_PATH") + table_name
+    output_path = os.environ.get("BRONZE_DB") + '.' + table_name
 
-    df = spark.read.format("delta").load(output_path)
+    df = spark.table(output_path)
 
     if groupBy_key:
         (

@@ -211,3 +211,6 @@ notes.md
 
 # draw.io
 *.drawio
+
+# jars
+*.jar

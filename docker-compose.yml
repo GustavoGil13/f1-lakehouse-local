@@ -7,7 +7,7 @@
 
 services:
   # ----------------------------
-  # 1) MinIO = "S3-compatible" object storage
+  # MinIO = "S3-compatible" object storage
   # ----------------------------
   # Local replacement for AWS S3 used by Spark via s3a://
   minio:
@@ -30,7 +30,7 @@ services:
       - "9001:9001"   # Web console
 
   # ----------------------------
-  # 2) createbuckets = one-time setup container
+  # createbuckets = one-time setup container
   # ----------------------------
   # Uses `mc` (MinIO client) to create the bucket defined in LAKEHOUSE_BUCKET.
   # This container exits after creating the bucket; it is safe to re-run.
@@ -55,15 +55,51 @@ services:
       echo 'Done.';
       "
 
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    platform: linux/x86_64
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: metastore
+    ports:
+      - "3306:3306"
+
+  hive-metastore:
+    image: apache/hive:4.0.0
+    container_name: hive-metastore
+    ports:
+      - "9083:9083"
+    environment:
+      HIVE_METASTORE_DB_HOST: mysql
+      HIVE_METASTORE_DB_NAME: metastore
+      HIVE_METASTORE_DB_USER: root
+      HIVE_METASTORE_DB_PASS: root
+      SERVICE_NAME: metastore
+    depends_on:
+      - mysql
+    volumes:
+       - ./hive/jars/hadoop-aws-3.3.4.jar:/opt/hive/lib/hadoop-aws-3.3.4.jar
+       - ./hive/jars/aws-java-sdk-bundle-1.12.262.jar:/opt/hive/lib/aws-java-sdk-bundle-1.12.262.jar
+       - ./hive/core-site.xml:/opt/hive/conf/core-site.xml
+    command: >
+      bash -lc "
+      while ! nc -z mysql 3306; do
+        echo 'Waiting for MySQL...';
+        sleep 1;
+      done;
+      /opt/hive/bin/hive --service metastore
+      "
+
   # ----------------------------
-  # 3) Spark Master
+  # Spark Master
   # ----------------------------
   # Single-node master used for local experiments. Image is built from Dockerfile.spark.
   spark-master:
     build:
       context: .
       dockerfile: Dockerfile.spark
-    image: ${SPARK_IMAGE}
+    image: f1-spark:local
     container_name: spark-master
     environment:
       # Provide S3A credentials + paths to Delta locations via environment (from .env).
@@ -73,9 +109,10 @@ services:
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
-      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
-      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
-      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
+      HIVE_WAREHOUSE_DIR: ${HIVE_WAREHOUSE_DIR}
+      BRONZE_DB: ${BRONZE_DB}
+      SILVER_DB: ${SILVER_DB}
+      DQ_DB: ${DQ_DB}
     ports:
       - "7077:7077"   # Spark master port
       - "8080:8080"   # Spark master UI
@@ -96,7 +133,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.spark
-    image: ${SPARK_IMAGE}
+    image: f1-spark:local
     container_name: spark-worker
     depends_on:
       - spark-master
@@ -107,9 +144,10 @@ services:
       S3A_ENDPOINT: ${S3A_ENDPOINT}
       AWS_ACCESS_KEY_ID: ${S3A_ACCESS_KEY}
       AWS_SECRET_ACCESS_KEY: ${S3A_SECRET_KEY}
-      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
-      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
-      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
+      HIVE_WAREHOUSE_DIR: ${HIVE_WAREHOUSE_DIR}
+      BRONZE_DB: ${BRONZE_DB}
+      SILVER_DB: ${SILVER_DB}
+      DQ_DB: ${DQ_DB}
     ports:
       - "8081:8081"   # Spark worker web UI
     volumes:
@@ -121,121 +159,6 @@ services:
       /opt/spark/sbin/start-worker.sh spark://spark-master:7077;
       tail -f /opt/spark/logs/*"
 
-  postgres:
-    image: postgres:16
-    env_file:
-      - .env
-    environment:
-      POSTGRES_USER: ${AIRFLOW_DB_USER}
-      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
-      POSTGRES_DB: ${AIRFLOW_DB_NAME}
-    volumes:
-      - airflow_pg:/var/lib/postgresql/data
-
-  airflow-init:
-    image: apache/airflow:${AIRFLOW_VERSION}
-    depends_on:
-      - postgres
-    env_file:
-      - .env
-    volumes:
-      - ./airflow/init:/opt/airflow/init:ro
-    command: >
-      bash -lc "
-      set -e;
-      airflow db migrate;
-      shopt -s nullglob;
-      for f in /opt/airflow/init/*.sh; do
-        echo Running init: $$f;
-        bash \"$$f\";
-      done;
-      airflow users create --username ${AIRFLOW_ADMIN_USER} --password ${AIRFLOW_ADMIN_PASSWORD} --firstname ${AIRFLOW_ADMIN_FIRSTNAME} --lastname ${AIRFLOW_ADMIN_LASTNAME} --role Admin --email ${AIRFLOW_ADMIN_EMAIL} || true;
-      echo 'Airflow init done.';
-      "
-
-  airflow-webserver:
-    image: apache/airflow:${AIRFLOW_VERSION}
-    depends_on:
-      - postgres
-      - airflow-init
-    env_file:
-      - .env
-    environment:
-      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: "False"
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: "True"
-
-      # usado pelos DAGs (sem hardcode)
-      DOCKER_NETWORK: ${DOCKER_NETWORK}
-      SPARK_IMAGE: ${SPARK_IMAGE}
-
-      # reusa vars do teu .env p/ jobs
-      S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
-      S3A_SECRET_KEY: ${S3A_SECRET_KEY}
-      S3A_ENDPOINT: ${S3A_ENDPOINT}
-      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
-      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
-      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
-
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/plugins:/opt/airflow/plugins
-      - ./airflow/init:/opt/airflow/init:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./spark/jobs:/opt/spark/jobs:ro
-      - ./spark/conf:/opt/spark/conf:ro
-      - ./spark/lib:/opt/spark/app_lib:ro
-
-    ports:
-      - "8082:8080"
-    command: >
-      bash -lc "
-      set -e;
-      airflow webserver
-      "
-
-
-  airflow-scheduler:
-    image: apache/airflow:${AIRFLOW_VERSION}
-    depends_on:
-      - postgres
-      - airflow-init
-    env_file:
-      - .env
-    environment:
-      AIRFLOW__CORE__EXECUTOR: ${AIRFLOW_EXECUTOR}
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@${AIRFLOW_DB_HOST}:${AIRFLOW_DB_PORT}/${AIRFLOW_DB_NAME}
-      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
-
-      DOCKER_NETWORK: ${DOCKER_NETWORK}
-      SPARK_IMAGE: ${SPARK_IMAGE}
-
-      S3A_ACCESS_KEY: ${S3A_ACCESS_KEY}
-      S3A_SECRET_KEY: ${S3A_SECRET_KEY}
-      S3A_ENDPOINT: ${S3A_ENDPOINT}
-      BRONZE_DELTA_PATH: ${BRONZE_DELTA_PATH}
-      SILVER_DELTA_PATH: ${SILVER_DELTA_PATH}
-      DQ_DELTA_PATH: ${DQ_DELTA_PATH}
-
-    volumes:
-      - ./airflow/dags:/opt/airflow/dags
-      - ./airflow/plugins:/opt/airflow/plugins
-      - ./airflow/init:/opt/airflow/init:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./spark/jobs:/opt/spark/jobs:ro
-      - ./spark/conf:/opt/spark/conf:ro
-      - ./spark/lib:/opt/spark/app_lib:ro
-
-    command: >
-      bash -lc "
-      set -e;
-      airflow scheduler
-      "
-
-
 
 volumes:
   minio:
-  airflow_pg:

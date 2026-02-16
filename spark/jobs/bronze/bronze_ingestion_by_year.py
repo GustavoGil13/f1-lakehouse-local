@@ -13,7 +13,7 @@ from logging_config import console_log_ingestion
 
 
 def main(endpoint: str, year: int) -> None:
-    spark = SparkSession.builder.appName(f"bronze_ingestion_{endpoint}").getOrCreate()
+    spark = SparkSession.builder.appName(f"bronze_ingestion_{endpoint}").enableHiveSupport().getOrCreate()
 
     url, params_used, http_status, payload = fetch_json(endpoint, params={"year": year})
 
@@ -36,9 +36,20 @@ def main(endpoint: str, year: int) -> None:
     )
 
     # Bronze write (append)
-    output_path = os.environ.get("BRONZE_DELTA_PATH") + endpoint
+    bronze_db = os.environ.get("BRONZE_DB")
+    bronze_db_location = os.environ.get("HIVE_WAREHOUSE_DIR") + "/" + bronze_db
+    # create database if not exists with location (idempotent)
+    spark.sql(f"CREATE DATABASE IF NOT EXISTS {bronze_db} LOCATION '{bronze_db_location}'")
 
-    df.write.format("delta").mode("append").save(output_path)
+    output_path = f"{bronze_db_location}/{endpoint}"
+
+    # Register table in Hive metastore (idempotent)
+    (
+        df.write.format("delta")
+        .mode("append")
+        .option("path", output_path)
+        .saveAsTable(f"{bronze_db}.{endpoint}")
+    )
 
     console_log_ingestion(endpoint, df.count(), output_path, request_id)
 
