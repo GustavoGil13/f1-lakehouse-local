@@ -82,6 +82,7 @@ Serves as the foundational dataset for subsequent ingestion.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
@@ -100,6 +101,7 @@ Meetings remain the source of truth for location metadata.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
@@ -117,6 +119,7 @@ Driver ingestion is filtered by meeting rather than session to reduce API call v
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
@@ -134,6 +137,7 @@ Provides classification results for each session across the season.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
+  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
   --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint sessions \
