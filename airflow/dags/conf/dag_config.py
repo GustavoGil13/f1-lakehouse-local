@@ -1,3 +1,9 @@
+STP_DATABASES_DAG_ID = "openf1_stp_databases"
+
+STP_DATABASES_DAG_CONFIG = [
+    {"task_id": "init_databases", "job_cmd": "/opt/spark/jobs/init/init_databases.py", "dependencies": []}
+]
+
 BRONZE_DAG_ID = "openf1_bronze_ingestion"
 
 BRONZE_DAG_CONFIG = [

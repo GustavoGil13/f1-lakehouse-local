@@ -35,7 +35,7 @@ def main(endpoint: str, year: int) -> None:
     )
 
     # Bronze write (append)
-    bronze_db , bronze_db_location = setup_db_location("bronze")
+    bronze_db, bronze_db_location = setup_db_location("bronze")
 
     output_path = f"{bronze_db_location}/{endpoint}"
 

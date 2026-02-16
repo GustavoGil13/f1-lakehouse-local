@@ -17,11 +17,13 @@ with DAG (
     year = "{{ ds[:4] }}"
     # for each configured task
     for task_config in SILVER_DAG_CONFIG:
+        # config information
+        task_id = task_config["task_id"]
         # create task
-        task = spark_task(task_config["task_id"], f"/opt/spark/jobs/silver/{task_config["task_id"]}.py --year {year}")
+        task = spark_task(task_id, f"/opt/spark/jobs/silver/{task_id}.py --year {year}")
         # if has dq tests then create validation task
         if task_config["has_dq"]:
-            task >> spark_task(f"{task_config["task_id"]}_validation", f"/opt/spark/jobs/tests/dq_runner.py --table {task_config["task_id"]} --year {year}")
+            task >> spark_task(f"{task_id}_validation", f"/opt/spark/jobs/tests/dq_runner.py --db_name silver --table_name {task_id} --year {year}")
         # if dependencies list is empty then proceed
         if not task_config["dependencies"]:
             continue

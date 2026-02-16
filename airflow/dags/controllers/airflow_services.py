@@ -6,7 +6,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 def spark_task(task_id: str, job_cmd: str) -> DockerOperator:
     return DockerOperator (
         task_id = task_id
-        , image = os.environ.get("SPARK_IMAGE")
+        , image = "f1-spark:local"
         , api_version = "auto"
         , docker_url = "unix://var/run/docker.sock"
         , network_mode = os.environ.get("DOCKER_NETWORK")
@@ -15,11 +15,12 @@ def spark_task(task_id: str, job_cmd: str) -> DockerOperator:
             "S3A_ACCESS_KEY": os.environ.get("S3A_ACCESS_KEY")
             , "S3A_SECRET_KEY": os.environ.get("S3A_SECRET_KEY")
             , "S3A_ENDPOINT": os.environ.get("S3A_ENDPOINT")
-            , "AWS_ACCESS_KEY_ID": os.environ.get("S3A_ACCESS_KEY")
-            , "AWS_SECRET_ACCESS_KEY": os.environ.get("S3A_SECRET_KEY")
-            , "BRONZE_DELTA_PATH": os.environ.get("BRONZE_DELTA_PATH")
-            , "SILVER_DELTA_PATH": os.environ.get("SILVER_DELTA_PATH")
-            , "DQ_DELTA_PATH": os.environ.get("DQ_DELTA_PATH")
+            , "AWS_ACCESS_KEY_ID": os.environ.get("AWS_ACCESS_KEY_ID")
+            , "AWS_SECRET_ACCESS_KEY": os.environ.get("AWS_SECRET_ACCESS_KEY")
+            , "HIVE_WAREHOUSE_DIR": os.environ.get("HIVE_WAREHOUSE_DIR")
+            , "BRONZE_DB": os.environ.get("BRONZE_DB")
+            , "SILVER_DB": os.environ.get("SILVER_DB")
+            , "DQ_DB": os.environ.get("DQ_DB")
         }
         , command = [
             "bash"
@@ -27,7 +28,6 @@ def spark_task(task_id: str, job_cmd: str) -> DockerOperator:
             , f"""/opt/spark/bin/spark-submit \
               --master spark://spark-master:7077 \
               --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-              --conf spark.ui.showConsoleProgress=false \
               {job_cmd}
             """
         ]

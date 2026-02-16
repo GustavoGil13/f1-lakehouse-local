@@ -60,8 +60,6 @@ The Bronze layer stores raw API data with minimal transformation, ensuring trace
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_year.py \
   --endpoint meetings \
   --year 2023'
@@ -82,8 +80,6 @@ Serves as the foundational dataset for subsequent ingestion.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
@@ -101,8 +97,6 @@ Meetings remain the source of truth for location metadata.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
@@ -119,8 +113,6 @@ Driver ingestion is filtered by meeting rather than session to reduce API call v
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint meetings \
   --year 2023 \
@@ -137,8 +129,6 @@ Provides classification results for each session across the season.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/bronze/bronze_ingestion_by_key.py \
   --source_endpoint sessions \
   --year 2023 \
@@ -162,8 +152,6 @@ The Silver layer standardizes and prepares data for analytics.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/circuits.py \
   --year 2023'
 ```
@@ -190,8 +178,6 @@ Source: Meetings Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/countries.py \
   --year 2023'
 ```
@@ -217,8 +203,6 @@ Source: Meetings Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/locations.py \
   --year 2023'
 ```
@@ -245,8 +229,6 @@ Source: Meetings Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/meetings.py \
   --year 2023'
 ```
@@ -276,8 +258,6 @@ Source: Meetings Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/sessions.py \
   --year 2023'
 ```
@@ -308,8 +288,6 @@ Source: Sessions Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/teams.py \
   --year 2023'
 ```
@@ -334,8 +312,6 @@ Source: Drivers Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/drivers.py \
   --year 2023'
 ```
@@ -365,8 +341,6 @@ Source: Drivers Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/drivers_sessions_association.py \
   --year 2023'
 ```
@@ -391,8 +365,6 @@ Source: Drivers Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/session_result.py \
   --year 2023'
 ```
@@ -425,8 +397,6 @@ Source: Session Result Bronze table.
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.sql.warehouse.dir=$HIVE_WAREHOUSE_DIR \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/silver/laps.py \
   --year 2023'
 ```
@@ -503,7 +473,6 @@ Run Great Expectations validation:
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/tests/dq_runner.py \
   --db_name ... \
   --table_name ... \
@@ -522,7 +491,6 @@ If any tests fail, use this command to verify which failed for a given table:
 ```powershell
 docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --conf spark.hadoop.fs.s3a.endpoint=$S3A_ENDPOINT \
-  --conf spark.ui.showConsoleProgress=false \
   /opt/spark/jobs/tests/dq_failed.py \
   --table_name ... \
   --year ...'

@@ -13,6 +13,11 @@ COPY spark/jobs /opt/spark/jobs
 COPY spark/conf /opt/spark/conf
 COPY spark/lib  /opt/spark/app_lib
 
+COPY hive/core-site.xml /opt/spark/conf/core-site.xml
+COPY spark/conf/hive-site.xml /opt/spark/conf/hive-site.xml
+COPY hive/jars/*.jar /opt/spark/jars/
+
+
 # Ensure spark user can read
 RUN chown -R spark:spark /opt/spark/jobs /opt/spark/conf /opt/spark/app_lib
 
