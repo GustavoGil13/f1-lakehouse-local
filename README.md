@@ -14,7 +14,7 @@ This repository can be used both as:
 
 ## 🏗️ Architecture Overview
 
-![Screenshot](arquitecture.png)
+![Screenshot](architecture.png)
 
 ## 🧰 Technology Stack
 
@@ -23,12 +23,13 @@ This repository can be used both as:
 * Apache Airflow → pipeline orchestration
 * Great Expectations → data quality validation
 * Docker Compose → fully reproducible local environment
+* MySQL → store Airflow metadata and Hive Metastore
 
 ---
 
 ## 🚀 Running the Project
 
-We need to included aws-hadoop and aws-java-sdk bundle in jars folder under hive, it provide minio access to hive. Download both jars using the following commands:
+Download this jars using the following commands:
 
 ```powershell
 Invoke-WebRequest `
