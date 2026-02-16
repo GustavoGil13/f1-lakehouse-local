@@ -6,7 +6,7 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from logging_config import console_log_ingestion
-from utils import get_most_recent_data, setup_metadata_columns, setup_db_location, create_db_if_not_exists
+from utils import get_most_recent_data, setup_metadata_columns, setup_db_location
 
 sys.path.append("/opt/spark/jobs/..")
 
@@ -70,8 +70,6 @@ def main(silver_table_name: str, year: int) -> None:
 
     # create database if not exists with location (idempotent)
     silver_db, silver_db_location = setup_db_location("silver")
-
-    create_db_if_not_exists(spark, silver_db, silver_db_location)
 
     silver_path = f"{silver_db_location}/{silver_table_name}"
 

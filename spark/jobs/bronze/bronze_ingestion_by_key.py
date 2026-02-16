@@ -9,7 +9,7 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from openf1_client import fetch_json
-from utils import json_serialize, get_most_recent_data, setup_metadata_columns, setup_db_location, create_db_if_not_exists
+from utils import json_serialize, get_most_recent_data, setup_metadata_columns, setup_db_location
 from logging_config import console_log_key, console_log_ingestion
 
 sys.path.append("/opt/spark/jobs/..")
@@ -83,9 +83,6 @@ def main (
             )
     
     df = spark.createDataFrame(all_raw, schema=json_schema)
-
-    # create database if not exists with location (idempotent)
-    create_db_if_not_exists(spark, bronze_db, bronze_db_location)
     
     output_path = f"{bronze_db_location}/{target_endpoint}"
 

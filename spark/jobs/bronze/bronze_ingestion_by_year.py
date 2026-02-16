@@ -7,7 +7,7 @@ from pyspark.sql import functions as F
 sys.path.append("/opt/spark/app_lib")
 
 from openf1_client import fetch_json
-from utils import json_serialize, setup_metadata_columns, create_db_if_not_exists, setup_db_location
+from utils import json_serialize, setup_metadata_columns, setup_db_location
 from logging_config import console_log_ingestion
 
 
@@ -36,8 +36,6 @@ def main(endpoint: str, year: int) -> None:
 
     # Bronze write (append)
     bronze_db , bronze_db_location = setup_db_location("bronze")
-    # create database if not exists with location (idempotent)
-    create_db_if_not_exists(spark, bronze_db, bronze_db_location)
 
     output_path = f"{bronze_db_location}/{endpoint}"
 

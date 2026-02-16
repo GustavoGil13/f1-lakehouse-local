@@ -6,7 +6,7 @@ from great_expectations.dataset import SparkDFDataset
 
 sys.path.append("/opt/spark/app_lib")
 
-from utils import failed_expectations_json, setup_metadata_columns, setup_db_location, create_db_if_not_exists
+from utils import failed_expectations_json, setup_metadata_columns, setup_db_location
 from logging_config import console_log_dq
 
 from dq_expectations import EXPECTATIONS_REGISTRY
@@ -39,9 +39,6 @@ def main(db_name: str, table_name: str, year: int):
     )
 
     dq_db, dq_db_location = setup_db_location("dq")
-
-    # create database if not exists with location (idempotent)
-    create_db_if_not_exists(spark, dq_db, dq_db_location)
 
     output_path = f"{dq_db_location}/dq_runs"
 
