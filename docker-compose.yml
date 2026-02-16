@@ -75,26 +75,32 @@ services:
     container_name: hive-metastore
     ports:
       - "9083:9083"
-    environment:
-      HIVE_METASTORE_DB_HOST: mysql
-      HIVE_METASTORE_DB_NAME: metastore
-      HIVE_METASTORE_DB_USER: root
-      HIVE_METASTORE_DB_PASS: root
-      SERVICE_NAME: metastore
     depends_on:
       - mysql
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: mysql
+      SKIP_SCHEMA_INIT: "true"
+      SERVICE_OPTS: >
+        -Djavax.jdo.option.ConnectionURL=jdbc:mysql://mysql:3306/metastore?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true
+        -Djavax.jdo.option.ConnectionDriverName=com.mysql.cj.jdbc.Driver
+        -Djavax.jdo.option.ConnectionUserName=root
+        -Djavax.jdo.option.ConnectionPassword=root
     volumes:
-       - ./hive/jars/hadoop-aws-3.3.4.jar:/opt/hive/lib/hadoop-aws-3.3.4.jar
-       - ./hive/jars/aws-java-sdk-bundle-1.12.262.jar:/opt/hive/lib/aws-java-sdk-bundle-1.12.262.jar
-       - ./hive/core-site.xml:/opt/hive/conf/core-site.xml
+      - ./hive/jars/hadoop-aws-3.3.4.jar:/opt/hive/lib/hadoop-aws-3.3.4.jar
+      - ./hive/jars/aws-java-sdk-bundle-1.12.262.jar:/opt/hive/lib/aws-java-sdk-bundle-1.12.262.jar
+      - ./hive/core-site.xml:/opt/hive/conf/core-site.xml
+      - ./hive/jars/mysql-connector-j-8.0.33.jar:/opt/hive/lib/mysql-connector-j-8.0.33.jar
     command: >
       bash -lc "
-      while ! nc -z mysql 3306; do
-        echo 'Waiting for MySQL...';
-        sleep 1;
-      done;
-      /opt/hive/bin/hive --service metastore
+        echo 'Waiting for MySQL on mysql:3306...';
+        until (echo > /dev/tcp/mysql/3306) >/dev/null 2>&1; do sleep 2; done;
+        echo 'MySQL is up. Initializing Hive schema (if needed)...';
+        /opt/hive/bin/schematool -dbType mysql -initSchema || true;
+        exec /opt/hive/bin/hive --service metastore
       "
+    restart: unless-stopped
+
 
   # ----------------------------
   # Spark Master
