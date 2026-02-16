@@ -1,5 +1,4 @@
 import argparse
-import os
 import sys
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
@@ -8,7 +7,7 @@ from pyspark.sql.window import Window
 sys.path.append("/opt/spark/app_lib")
 
 from logging_config import console_log_ingestion
-from utils import get_most_recent_data, setup_metadata_columns
+from utils import get_most_recent_data, setup_metadata_columns, setup_db_location, create_db_if_not_exists
 
 sys.path.append("/opt/spark/jobs/..")
 
@@ -16,13 +15,12 @@ from jobs.schemas.drivers import json_schema
 
 
 def main(silver_table_name: str, year: int) -> None:
-    spark = SparkSession.builder.appName(f"silver_transform_{silver_table_name}").getOrCreate()
+    spark = SparkSession.builder.appName(f"silver_transform_{silver_table_name}").enableHiveSupport().getOrCreate()
 
-    bronze_path = os.environ.get("BRONZE_DELTA_PATH") + "drivers"
+    bronze_db, _ = setup_db_location("bronze")
 
     bronze_df = (
-        spark.read.format("delta")
-        .load(bronze_path)
+        spark.table(f"{bronze_db}.drivers")
         .filter(F.col("year") == year)
     )
 
@@ -37,7 +35,7 @@ def main(silver_table_name: str, year: int) -> None:
         bronze_df_with_struct
         .filter(F.col("json.team_name").isNotNull())
         .select (
-            F.xxhash64("json.team_name").alias("team_key")
+            F.xxhash64("json.team_name").cast("bigint").alias("team_key")
             , F.col("json.team_name").alias("team_name")
             , F.upper(F.col("json.team_colour")).alias("team_colour") # upper because of inconsistency in the source data (e.g. team colour 6692FF vs 6692ff)
             , F.col("year").alias("year") # partition 
@@ -62,17 +60,25 @@ def main(silver_table_name: str, year: int) -> None:
 
     request_id = silver_df.select("request_id").distinct().first()[0]
 
-    silver_path = os.environ.get("SILVER_DELTA_PATH") + silver_table_name
+    # create database if not exists with location (idempotent)
+    silver_db, silver_db_location = setup_db_location("silver")
+
+    create_db_if_not_exists(spark, silver_db, silver_db_location)
+
+    silver_path = f"{silver_db_location}/{silver_table_name}"
 
     (
-        silver_df
-        .write
-        .format("delta")
+        silver_df.write.format("delta")
         .mode("overwrite")
-        .option("overwriteSchema", "true")
         .partitionBy("year")
         .save(silver_path)
     )
+
+    spark.sql(f"""
+        CREATE TABLE IF NOT EXISTS {silver_db}.{silver_table_name}
+        USING DELTA
+        LOCATION '{silver_path}'
+    """)
 
     console_log_ingestion(silver_table_name, silver_df.count(), silver_path, request_id)
     

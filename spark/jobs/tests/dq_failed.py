@@ -1,15 +1,24 @@
 import argparse
-import os
 import json
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
+sys.path.append("/opt/spark/app_lib")
+
+from utils import setup_db_location
+
+
 def main(table_name: str, year: int) -> None:
-    spark = SparkSession.builder.appName("dq_failed").getOrCreate()
+    spark = SparkSession.builder.appName("dq_failed").enableHiveSupport().getOrCreate()
 
-    path = os.environ.get("DQ_DELTA_PATH") + "dq_runs"
+    db, _ = setup_db_location("dq")
 
-    df = spark.read.format("delta").load(path).filter(f"year = {year} and table = '{table_name}' and success is False").orderBy(F.desc("run_ts"))
+    df = (
+        spark.table(f"{db}.dq_runs")
+        .filter(f"year = {year} and table = '{table_name}' and success is False")
+        .orderBy(F.desc("run_ts"))
+    )
 
     failed_json = df.select("failed_json").first()[0]
 
