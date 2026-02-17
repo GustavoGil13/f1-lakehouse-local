@@ -1,6 +1,4 @@
--- SHOW CATALOGS
--- SHOW SCHEMAS FROM delta
--- SHOW TABLES FROM delta.silver
-SELECT *
-FROM DELTA.data_quality.dq_runs
+SELECT year, run_ts, count(*)
+FROM delta.silver.drivers
+group by 1,2
 ;

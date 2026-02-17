@@ -10,6 +10,7 @@ with DAG (
     , schedule = None
     , catchup = False
     , concurrency = 2
+    , max_active_runs = 1
     , tags = ["openf1", "lakehouse", "silver"]
 ) as dag:
 

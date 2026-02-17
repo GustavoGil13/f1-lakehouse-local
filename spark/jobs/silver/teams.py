@@ -16,6 +16,8 @@ from jobs.schemas.drivers import json_schema
 
 def main(silver_table_name: str, year: int) -> None:
     spark = SparkSession.builder.appName(f"silver_transform_{silver_table_name}").enableHiveSupport().getOrCreate()
+    # Only overwrite the partitions that are being processed, not the entire table
+    spark.conf.set("spark.sql.sources.partitionOverwriteMode", "dynamic")
 
     bronze_db, _ = setup_db_location("bronze")
 
