@@ -24,6 +24,7 @@ This repository can be used both as:
 * Great Expectations → data quality validation
 * Docker Compose → fully reproducible local environment
 * MySQL → store Airflow metadata and Hive Metastore
+* Trino → Query Engine
 
 ---
 
@@ -501,6 +502,52 @@ docker compose exec spark-master sh -lc '/opt/spark/bin/spark-submit \
   --table_name ... \
   --year ...'
 ```
+
+# 🔎 Querying the Lakehouse with Trino
+
+This project includes **Trino** as the SQL query engine for interactive analytics over the lakehouse.  
+Trino enables fast SQL queries directly on the Delta Lake tables stored in MinIO and registered in the Hive Metastore, avoiding the need to run full Spark jobs for exploratory analysis.
+
+### Connection Details
+
+```json
+{
+  "driver": "Trino Driver"
+  , "name": "trino-local"
+  , "server": "http://localhost:8083"
+  , "catalog": "delta"
+  , "user": "trino"
+}
+```
+
+Internally, Trino connects to:
+
+- **Hive Metastore** → `thrift://hive-metastore:9083`
+- **MinIO (S3-compatible storage)** → `http://minio:9000`
+
+This configuration allows querying Delta Lake tables transparently using standard SQL.
+
+Example query:
+
+```sql
+SHOW TABLES FROM delta.silver;
+
+SELECT *
+FROM delta.silver.drivers
+LIMIT 10;
+```
+
+### Query Tools and Visualization
+
+Trino only provides the query engine.
+The choice of visualization or SQL client is intentionally left to the user.
+
+Common options include:
+
+- VS Code SQL extensions
+- DBeaver / DataGrip
+- Superset / Metabase / Power BI
+- Jupyter notebooks with Trino client
 
 ---
 
